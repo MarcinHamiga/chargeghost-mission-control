@@ -1,5 +1,7 @@
-import { createMemo, createEffect, createSignal, For, onCleanup } from "solid-js";
+import { onMount, onCleanup, createEffect, createSignal } from "solid-js";
 import { state } from "../store/simulator";
+import Chart from "chart.js/auto";
+import "chartjs-adapter-date-fns";
 
 interface TelemetryChartProps {
   connectorId: number;
@@ -8,8 +10,108 @@ interface TelemetryChartProps {
 }
 
 export const TelemetryChart = (props: TelemetryChartProps) => {
-  const [history, setHistory] = createSignal<number[]>([]);
-  const MAX_POINTS = 40;
+  let canvasRef!: HTMLCanvasElement;
+  let chartInstance: Chart | null = null;
+  const TIME_WINDOW_MS = 60_000; // 60 seconds
+  const MAX_POINTS = 60;
+
+  const [currentValue, setCurrentValue] = createSignal<number | null>(null);
+
+  let history: { x: number; y: number }[] = [];
+  let lastReadingWh: number | null = null;
+  let lastTimestamp: number | null = null;
+
+  onMount(() => {
+    const config: any = {
+      type: "line",
+      data: {
+        datasets: [
+          {
+            label: props.label,
+            data: history,
+            borderColor: props.color || "#3b82f6",
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 0, // Disable animation to prevent lag with real-time updates
+        },
+        scales: {
+          x: {
+            type: "time",
+            time: {
+              unit: "second",
+              stepSize: 15,
+              displayFormats: {
+                second: "HH:mm:ss",
+              },
+            },
+            grid: {
+              color: "#27272a",
+            },
+            ticks: {
+              color: "#52525b",
+              font: {
+                family: "monospace",
+                size: 10,
+              },
+            },
+            min: Date.now() - TIME_WINDOW_MS,
+            max: Date.now(),
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: "#27272a",
+            },
+            ticks: {
+              color: "#52525b",
+              font: {
+                family: "monospace",
+                size: 10,
+              },
+              callback: function (value: number) {
+                return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0);
+              },
+            },
+          },
+        },
+        plugins: {
+          legend: {
+            display: false,
+          },
+          tooltip: {
+            enabled: false,
+          },
+        },
+      },
+    };
+
+    chartInstance = new Chart(canvasRef, config);
+
+    // To continuously slide the x-axis even if no new data points arrive,
+    // we can use a small interval to update the chart's x-scale min/max.
+    const intervalId = setInterval(() => {
+      if (chartInstance) {
+        const now = Date.now();
+        chartInstance.options.scales.x.min = now - TIME_WINDOW_MS;
+        chartInstance.options.scales.x.max = now;
+        chartInstance.update('none'); // Update without animation
+      }
+    }, 1000);
+
+    onCleanup(() => {
+      clearInterval(intervalId);
+      chartInstance?.destroy();
+    });
+  });
 
   createEffect(() => {
     const snapshot = state.snapshot;
@@ -18,78 +120,73 @@ export const TelemetryChart = (props: TelemetryChartProps) => {
     const connector = snapshot.connectors.find((c) => c.id === props.connectorId);
     if (!connector) return;
 
-    // We'll track active power (W) = voltage * current
-    const value = connector.voltage * connector.current;
+    const meter = snapshot.energy_meters[props.connectorId.toString()];
+    let value: number;
+    const now = Date.now();
 
-    setHistory((prev) => {
-      const next = [...prev, value];
-      if (next.length > MAX_POINTS) {
-        return next.slice(next.length - MAX_POINTS);
+    if (meter && meter.is_charging && lastReadingWh !== null && lastTimestamp !== null) {
+      const dtHours = (now - lastTimestamp) / 3_600_000;
+      if (dtHours > 0) {
+        const dWh = meter.reading_wh - lastReadingWh;
+        value = Math.max(0, dWh / dtHours);
+      } else {
+        value = 0;
       }
-      return next;
-    });
+    } else if (meter && meter.is_charging) {
+      value = connector.voltage * connector.current;
+    } else {
+      value = 0;
+    }
+
+    if (meter) {
+      lastReadingWh = meter.reading_wh;
+      lastTimestamp = now;
+    }
+
+    // Add new data point
+    history.push({ x: now, y: value });
+    setCurrentValue(value);
+
+    // Keep only points within the window + small buffer
+    const cutoff = now - TIME_WINDOW_MS - 2000;
+    while (history.length > 0 && history[0].x < cutoff) {
+      history.shift();
+    }
+
+    // Update the chart dataset
+    if (chartInstance) {
+      chartInstance.data.datasets[0].data = history;
+      chartInstance.options.scales.x.min = now - TIME_WINDOW_MS;
+      chartInstance.options.scales.x.max = now;
+
+      // Adjust max Y dynamically rounded to sensible values
+      const maxVal = Math.max(...history.map((d) => d.y), 100);
+      const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
+      const normalized = maxVal / magnitude;
+      let multiplier;
+      if (normalized <= 1.2) multiplier = 1.2;
+      else if (normalized <= 2) multiplier = 2;
+      else if (normalized <= 5) multiplier = 5;
+      else multiplier = 10;
+      chartInstance.options.scales.y.max = multiplier * magnitude;
+
+      chartInstance.update('none');
+    }
   });
-
-  const pathData = createMemo(() => {
-    const data = history();
-    if (data.length < 2) return "";
-
-    const width = 300;
-    const height = 100;
-    const max = Math.max(...data, 1); // Avoid division by zero
-    const min = 0; // Baseline at 0
-
-    const points = data.map((v, i) => {
-      const x = (i / (MAX_POINTS - 1)) * width;
-      const y = height - ((v - min) / (max - min)) * height;
-      return `${x},${y}`;
-    });
-
-    return `M ${points.join(" L ")}`;
-  });
-
-  const gridLines = [25, 50, 75];
 
   return (
-    <div class="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800 backdrop-blur-sm">
+    <div class="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800 backdrop-blur-sm h-full flex flex-col">
       <div class="flex justify-between items-center mb-3">
         <div class="flex flex-col">
           <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{props.label}</h3>
           <div class="h-1 w-8 rounded-full mt-1" style={{ "background-color": props.color || "#3b82f6" }}></div>
         </div>
         <span class="text-sm font-mono text-zinc-200">
-          {history().length > 0 ? `${history()[history().length - 1].toFixed(1)} W` : "---"}
+          {currentValue() !== null ? `${currentValue()!.toFixed(1)} W` : "---"}
         </span>
       </div>
-      <div class="relative h-24 w-full">
-        <svg
-          viewBox="0 0 300 100"
-          preserveAspectRatio="none"
-          class="w-full h-full"
-        >
-          {/* Horizontal Grid lines */}
-          <For each={gridLines}>
-            {(y) => (
-              <line x1="0" y1={y} x2="300" y2={y} stroke="#27272a" stroke-width="0.5" />
-            )}
-          </For>
-          
-          {/* Vertical Grid lines (time) */}
-          <For each={[75, 150, 225]}>
-            {(x) => (
-              <line x1={x} y1="0" x2={x} y2="100" stroke="#27272a" stroke-width="0.5" />
-            )}
-          </For>
-
-          <path
-            d={pathData()}
-            fill="none"
-            stroke={props.color || "#3b82f6"}
-            stroke-width="2"
-            stroke-linejoin="round"
-            class="transition-all duration-1000 ease-linear"
-          />
-        </svg>
+      <div class="relative flex-1 w-full min-h-[100px]">
+        <canvas ref={canvasRef} class="absolute inset-0 w-full h-full"></canvas>
       </div>
     </div>
   );

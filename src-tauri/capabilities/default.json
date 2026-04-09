@@ -6,6 +6,13 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "http:default"
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "sidecar": "bin/chargeghost-core"
+        }
+      ]
+    }
   ]
 }

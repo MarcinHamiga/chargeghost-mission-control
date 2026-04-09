@@ -55,7 +55,7 @@ export interface EnergyMeter {
 
 export interface StatusSnapshot {
   ocpp_connected: boolean;
-  uptime_seconds: number;
+  uptime_seconds?: number;
   connectors: Connector[];
   active_sessions: Session[];
   energy_meters: Record<string, EnergyMeter>;
@@ -71,7 +71,7 @@ export interface Config {
   log_mode: 'debug' | 'info' | 'warn' | 'error';
   multi_evse_mode: boolean;
   ev_battery_capacity: number;
-  ocpp_version: '1.6J';
+  ocpp_version: '1.6' | '2.0.1';
   persist_message_queue: boolean;
   rfid_tag: string;
 }
@@ -106,9 +106,9 @@ export interface ChargingProfile {
 
 export interface LocalAuthEntry {
   id_tag: string;
-  authorization_status: 'Accepted' | 'Blocked' | 'Expired' | 'Invalid';
+  status: 'Accepted' | 'Blocked' | 'Expired' | 'Invalid';
   expiry_date: string | null;
-  is_expired: boolean;
+  parent_id_tag: string | null;
 }
 
 export interface LocalAuthList {
@@ -120,13 +120,20 @@ export interface LocalAuthList {
 }
 
 export interface TimelineEvent {
-  id: number;
+  event_id: string;
   timestamp: string; // ISO8601
   source: string;
+  direction: string;
   event_type: string;
+  action: string;
+  message_id: string;
   connector_id: number | null;
-  action: string | null;
-  details: any;
+  transaction_id: number | null;
+  level: string;
+  summary: string;
+  payload: any;
+  correlation_key: string | null;
+  tags: string[];
 }
 
 export interface TimelineResponse {

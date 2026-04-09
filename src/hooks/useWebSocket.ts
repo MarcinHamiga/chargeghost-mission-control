@@ -42,7 +42,7 @@ export function useWebSocket() {
       try {
         const message = JSON.parse(event.data);
         await logger.wsMessage('RECEIVED', message);
-        if (message.type === "state_snapshot") {
+        if (message.type === "state_snapshot" || message.type === "tick") {
           applySnapshot(message.data as StatusSnapshot);
         }
       } catch (e) {

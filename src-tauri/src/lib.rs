@@ -2,16 +2,26 @@ use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-use std::fs::OpenOptions;
+use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::path::PathBuf;
+
+fn log_dir() -> PathBuf {
+    let dir = dirs::home_dir()
+        .expect("could not resolve home directory")
+        .join(".chargeghost");
+    fs::create_dir_all(&dir).expect("could not create ~/.chargeghost");
+    dir
+}
 
 #[tauri::command]
 fn log_to_terminal(message: String) {
     println!("{}", message);
+    let path = log_dir().join("communication.log");
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("communication.log")
+        .open(path)
         .unwrap();
     if let Err(e) = writeln!(file, "{}", message) {
         eprintln!("Couldn't write to log file: {}", e);

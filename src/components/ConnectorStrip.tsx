@@ -9,7 +9,7 @@ function cn(...inputs: any[]) {
 }
 
 export function ConnectorStrip() {
-  const connectors = () => state.snapshot?.connectors || [];
+  const connectors = () => [...(state.snapshot?.connectors || [])].sort((a, b) => a.id - b.id);
 
   return (
     <div class="flex gap-2 overflow-x-auto pb-2">

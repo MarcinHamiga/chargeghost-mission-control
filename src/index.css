@@ -41,3 +41,14 @@
     @apply bg-accent-teal/10 text-accent-teal border border-accent-teal/20;
   }
 }
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

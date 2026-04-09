@@ -66,7 +66,7 @@ export const api = {
   },
 
   async getAbout(): Promise<AboutInfo> {
-    return request<AboutInfo>(`${ROOT_URL}/api/about`);
+    return request<AboutInfo>(`${BASE_URL}/about`);
   },
 
   // Status
@@ -236,7 +236,7 @@ export const api = {
   async updateLocalAuthList(params: {
     list_version: number;
     update_type: 'Full' | 'Differential';
-    entries: { id_tag: string; status: string; expiry?: string }[];
+    entries: { id_tag: string; status: string; expiry_date?: string; parent_id_tag?: string }[];
   }): Promise<StandardResponse> {
     return request<StandardResponse>(`${BASE_URL}/local-auth-list`, {
       method: 'PUT',
@@ -251,8 +251,8 @@ export const api = {
     });
   },
 
-  async clearLocalAuthList(): Promise<void> {
-    return request<void>(`${BASE_URL}/local-auth-list`, { method: 'DELETE' });
+  async clearLocalAuthList(): Promise<StandardResponse> {
+    return request<StandardResponse>(`${BASE_URL}/local-auth-list`, { method: 'DELETE' });
   },
 
   // Firmware & Diagnostics

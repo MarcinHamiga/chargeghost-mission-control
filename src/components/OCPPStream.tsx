@@ -26,7 +26,7 @@ export function OCPPStream() {
       <div class="space-y-3 font-mono text-[11px] overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-40">
         <For each={events()?.events}>
           {(event) => {
-            const isSent = event.source !== "central_system";
+            const isSent = event.direction === "outbound";
             return (
               <div class={cn(
                 "flex gap-3 pl-3 border-l-2 transition-opacity",
@@ -43,7 +43,7 @@ export function OCPPStream() {
                 </span>
                 <span class="break-all">
                   <span class="font-bold mr-1">{event.action}</span>
-                  <span class="opacity-70">{JSON.stringify(event.details)}</span>
+                  <span class="opacity-70">{event.summary || JSON.stringify(event.payload)}</span>
                 </span>
               </div>
             );
