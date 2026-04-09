@@ -7,23 +7,27 @@ import {
   Terminal, 
   ShieldAlert, 
   Play, 
-  Plus,
   ArrowUpRight,
   Wifi,
-  Cpu
+  Cpu,
+  RefreshCw
 } from "lucide-solid";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { state } from "./store/simulator";
 import { TelemetryChart } from "./components/TelemetryChart";
+import { ConnectorStrip } from "./components/ConnectorStrip";
+import { ActionPanel } from "./components/ActionPanel";
+import { OCPPStream } from "./components/OCPPStream";
+import { useWebSocket } from "./hooks/useWebSocket";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export default function MissionControl() {
+  useWebSocket();
   const [activeTab, setActiveTab] = createSignal("dashboard");
-  const [chargingStatus, setChargingStatus] = createSignal("Charging");
 
   const sidebarItems = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -33,11 +37,14 @@ export default function MissionControl() {
     { id: "settings", icon: Settings, label: "Settings" },
   ];
 
-  const telemetryData = [
-    { label: "Voltage", value: "238.4 V", trend: "+0.2" },
-    { label: "Current", value: "31.8 A", trend: "-0.5" },
-    { label: "Power", value: "7.58 kW", trend: "+0.1" },
-    { label: "Temp", value: "34.2 °C", trend: "+1.2" },
+  const currentConnector = () => state.snapshot?.connectors.find(c => c.id === state.selectedConnectorId);
+  const energyMeter = () => state.snapshot?.energy_meters[state.selectedConnectorId.toString()];
+
+  const telemetryStats = () => [
+    { label: "Voltage", value: currentConnector() ? `${currentConnector()!.voltage.toFixed(1)} V` : "---", icon: Zap },
+    { label: "Current", value: currentConnector() ? `${currentConnector()!.current.toFixed(1)} A` : "---", icon: Activity },
+    { label: "Power", value: currentConnector() ? `${((currentConnector()!.voltage * currentConnector()!.current) / 1000).toFixed(2)} kW` : "---", icon: Zap },
+    { label: "Energy", value: energyMeter() ? `${(energyMeter()!.reading_wh / 1000).toFixed(2)} kWh` : "---", icon: Activity },
   ];
 
   return (
@@ -68,133 +75,136 @@ export default function MissionControl() {
           </For>
         </nav>
 
-        <div class="mt-auto p-4 glass-card border-none bg-accent-teal/5 text-accent-teal/80 text-xs">
-          <div class="flex items-center gap-2 mb-1">
-            <Wifi size={14} />
-            <span class="font-medium">OCPP Central System</span>
-          </div>
-          <p class="text-[10px] opacity-70">Connected: ws://localhost:8887</p>
+        <div class="mt-auto space-y-2">
+            <div class={cn(
+                "p-4 glass-card border-none text-xs transition-colors",
+                state.connectionStatus === "connected" ? "bg-accent-teal/5 text-accent-teal/80" : "bg-red-500/5 text-red-500/80"
+            )}>
+              <div class="flex items-center gap-2 mb-1">
+                <div class={cn(
+                    "w-2 h-2 rounded-full",
+                    state.connectionStatus === "connected" ? "bg-accent-teal shadow-[0_0_8px_rgba(20,184,166,0.6)]" : "bg-red-500 animate-pulse"
+                )}></div>
+                <span class="font-medium">Simulator Bridge</span>
+              </div>
+              <p class="text-[10px] opacity-70">
+                {state.connectionStatus === "connected" ? "Real-time Link Active" : 
+                 state.connectionStatus === "connecting" ? "Connecting..." : "Searching for Simulator..."}
+              </p>
+            </div>
+
+            <div class={cn(
+                "p-4 glass-card border-none text-xs transition-colors",
+                state.snapshot?.ocpp_connected ? "bg-accent-teal/5 text-accent-teal/80" : "bg-red-500/5 text-red-500/80"
+            )}>
+              <div class="flex items-center gap-2 mb-1">
+                <Wifi size={14} class={state.snapshot?.ocpp_connected ? "text-accent-teal" : "text-red-500"} />
+                <span class="font-medium">OCPP Central System</span>
+              </div>
+              <p class="text-[10px] opacity-70">
+                {state.snapshot?.ocpp_connected ? "Connected to Backend" : "Disconnected from Backend"}
+              </p>
+            </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main class="flex-1 overflow-y-auto p-8 bg-linear-to-b from-bg-main to-bg-secondary">
-        {/* Header */}
-        <header class="flex justify-between items-start mb-8">
-          <div>
-            <h1 class="text-2xl font-bold mb-1">Mission Control</h1>
-            <p class="text-text-secondary">Simulator instance: CG-EVSE-001</p>
-          </div>
-          <div class="flex gap-3">
-            <button class="flex items-center gap-2 px-4 py-2 bg-accent-teal text-bg-main font-bold rounded-lg hover:bg-accent-teal-hover transition-colors">
-              <Play size={16} fill="currentColor" />
-              Start Session
-            </button>
-            <button class="flex items-center gap-2 px-4 py-2 bg-bg-card border border-border-default rounded-lg hover:bg-white/5 transition-colors">
-              <Plus size={16} />
-              New Scenario
-            </button>
-          </div>
-        </header>
-
-        {/* Dashboard Grid */}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <For each={telemetryData}>
-            {(stat) => (
-              <div class="glass-card p-4 group hover:border-accent-teal/30 transition-all">
-                <div class="flex justify-between items-start mb-2">
-                  <span class="text-text-secondary text-xs font-medium uppercase tracking-wider">{stat.label}</span>
-                  <Activity size={14} class="text-text-muted group-hover:text-accent-teal" />
-                </div>
-                <div class="flex items-baseline gap-2">
-                  <span class="text-xl font-bold tracking-tight">{stat.value}</span>
-                  <span class={cn(
-                    "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                    stat.trend.startsWith("+") ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-                  )}>
-                    {stat.trend}
-                  </span>
-                </div>
+        <Show when={state.snapshot} fallback={
+            <div class="h-full flex flex-col items-center justify-center space-y-4 opacity-50">
+                <RefreshCw size={48} class="animate-spin text-accent-teal" />
+                <p class="text-lg font-medium animate-pulse">Initializing Mission Control...</p>
+            </div>
+        }>
+            {/* Header */}
+            <header class="flex justify-between items-start mb-8">
+              <div>
+                <h1 class="text-2xl font-bold mb-1 uppercase tracking-tight">Mission Control</h1>
+                <p class="text-text-secondary">
+                    <span class="text-accent-teal font-mono mr-2">INSTANCE:</span>
+                    CG-EVSE-001
+                </p>
               </div>
-            )}
-          </For>
-        </div>
+              <div class="flex gap-3">
+                <ConnectorStrip />
+              </div>
+            </header>
 
-        {/* Real-time Telemetry Visualization */}
-        <section class="glass-card p-6 mb-8 relative overflow-hidden">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-lg font-bold flex items-center gap-2">
-              <Activity size={20} class="text-accent-teal" />
-              Power Delivery Profile
-            </h2>
-            <div class="flex gap-4">
-                <span class="flex items-center gap-1.5 text-xs text-text-secondary">
-                    <span class="w-2 h-2 rounded-full bg-accent-teal"></span> Active Power
-                </span>
-                <span class="flex items-center gap-1.5 text-xs text-text-secondary">
-                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> Current limit
-                </span>
+            {/* Dashboard Grid */}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <For each={telemetryStats()}>
+                {(stat) => (
+                  <div class="glass-card p-4 group hover:border-accent-teal/30 transition-all">
+                    <div class="flex justify-between items-start mb-2">
+                      <span class="text-text-secondary text-[10px] font-bold uppercase tracking-widest">{stat.label}</span>
+                      <stat.icon size={14} class="text-text-muted group-hover:text-accent-teal" />
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                      <span class="text-xl font-bold tracking-tight font-mono">{stat.value}</span>
+                    </div>
+                  </div>
+                )}
+              </For>
             </div>
-          </div>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TelemetryChart connectorId={1} label="Connector 1 Power" color="#14b8a6" />
-            <TelemetryChart connectorId={2} label="Connector 2 Power" color="#3b82f6" />
-          </div>
-        </section>
 
-        {/* Secondary Grid */}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 glass-card p-6">
-                <h3 class="font-bold mb-4 flex items-center gap-2">
-                    <Terminal size={18} class="text-text-muted" />
-                    OCPP Stream
-                </h3>
-                <div class="space-y-3 font-mono text-[11px]">
-                    <div class="flex gap-3 text-green-500">
-                        <span class="text-text-muted shrink-0">12:04:22</span>
-                        <span class="font-bold shrink-0">[SENT]</span>
-                        <span>BootNotification {"{chargePointVendor: 'ChargeGhost', model: 'MissionControl'}"}</span>
+            {/* Real-time Telemetry Visualization & Actions */}
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                <section class="lg:col-span-3 glass-card p-6 relative overflow-hidden flex flex-col">
+                  <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold flex items-center gap-2">
+                      <Activity size={20} class="text-accent-teal" />
+                      Power Delivery Profile
+                    </h2>
+                    <div class="flex gap-4">
+                        <span class="flex items-center gap-1.5 text-xs text-text-secondary">
+                            <span class="w-2 h-2 rounded-full bg-accent-teal"></span> Active Power (W)
+                        </span>
                     </div>
-                    <div class="flex gap-3 text-blue-400">
-                        <span class="text-text-muted shrink-0">12:04:23</span>
-                        <span class="font-bold shrink-0">[RECV]</span>
-                        <span>BootNotificationResponse {"{status: 'Accepted', currentTime: '2026-04-09T12:04:23Z'}"}</span>
-                    </div>
-                    <div class="flex gap-3 text-text-primary/60 border-l-2 border-accent-teal pl-3 ml-2">
-                        <span class="text-text-muted shrink-0">12:04:45</span>
-                        <span class="font-bold shrink-0">[SENT]</span>
-                        <span>StatusNotification {"{connectorId: 1, errorCode: 'NoError', status: 'Charging'}"}</span>
-                    </div>
+                  </div>
+                  
+                  <div class="flex-1 min-h-[300px]">
+                    <TelemetryChart connectorId={state.selectedConnectorId} label={`Connector ${state.selectedConnectorId} Power`} color="#14b8a6" />
+                  </div>
+                </section>
+
+                <div class="lg:col-span-1">
+                    <ActionPanel />
                 </div>
             </div>
 
-            <div class="glass-card p-6 flex flex-col justify-between">
-                <div>
-                    <h3 class="font-bold mb-4 flex items-center gap-2">
-                        <ShieldAlert size={18} class="text-red-500" />
-                        Quick Fault Injection
-                    </h3>
-                    <div class="space-y-2">
-                        <button class="w-full text-left px-3 py-2 rounded border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-colors text-xs text-red-200">
-                            EV Communication Error
-                        </button>
-                        <button class="w-full text-left px-3 py-2 rounded border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-xs text-orange-200">
-                            High Temperature Cutoff
-                        </button>
-                        <button class="w-full text-left px-3 py-2 rounded border border-border-default hover:border-text-muted transition-colors text-xs">
-                            Grid Overvoltage
+            {/* Secondary Grid */}
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <OCPPStream />
+                </div>
+
+                <div class="glass-card p-6 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-bold mb-4 flex items-center gap-2">
+                            <ShieldAlert size={18} class="text-red-500" />
+                            Quick Fault Injection
+                        </h3>
+                        <div class="space-y-2">
+                            <button class="w-full text-left px-3 py-2 rounded border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-colors text-xs text-red-200">
+                                EV Communication Error
+                            </button>
+                            <button class="w-full text-left px-3 py-2 rounded border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-colors text-xs text-orange-200">
+                                High Temperature Cutoff
+                            </button>
+                            <button class="w-full text-left px-3 py-2 rounded border border-border-default hover:border-text-muted transition-colors text-xs">
+                                Grid Overvoltage
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-8">
+                         <button class="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold border border-border-default rounded-lg hover:bg-white/5">
+                            <ArrowUpRight size={14} />
+                            Open Fault Designer
                         </button>
                     </div>
                 </div>
-                <div class="mt-8">
-                     <button class="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold border border-border-default rounded-lg hover:bg-white/5">
-                        <ArrowUpRight size={14} />
-                        Open Fault Designer
-                    </button>
-                </div>
             </div>
-        </div>
+        </Show>
       </main>
     </div>
   );
