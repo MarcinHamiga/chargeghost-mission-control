@@ -15,194 +15,190 @@ import {
   StatusSnapshot,
   TimelineResponse,
 } from './types';
+import { logger } from './logger';
 
 const BASE_URL = 'http://localhost:8080/api/v1';
 const ROOT_URL = 'http://localhost:8080';
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let errorDetail = '';
+class APIError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+async function handleResponse<T>(response: Response, url: string): Promise<T> {
+  let data: any;
+  if (response.status !== 204) {
     try {
-      const errorBody = await response.json();
-      errorDetail = errorBody.message || JSON.stringify(errorBody);
+      data = await response.json();
     } catch {
-      errorDetail = response.statusText;
+      data = { message: response.statusText };
     }
-    throw new Error(`API Error ${response.status}: ${errorDetail}`);
   }
-  if (response.status === 204) {
-    return {} as T;
+
+  await logger.restResponse(url, response.status, data);
+
+  if (!response.ok) {
+    throw new APIError(response.status, data?.message || JSON.stringify(data));
   }
-  return response.json();
+
+  return data as T;
+}
+
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+  await logger.restRequest(url, options);
+  try {
+    const response = await fetch(url, options);
+    return handleResponse<T>(response, url);
+  } catch (error) {
+    if (!(error instanceof APIError)) {
+      console.error(`[REST Network Error] ${url}`, error);
+    }
+    throw error;
+  }
 }
 
 export const api = {
   // Health & About
   async getHealth(): Promise<HealthStatus> {
-    const response = await fetch(`${ROOT_URL}/health`);
-    return handleResponse<HealthStatus>(response);
+    return request<HealthStatus>(`${ROOT_URL}/health`);
   },
 
   async getAbout(): Promise<AboutInfo> {
-    const response = await fetch(`${ROOT_URL}/api/about`);
-    return handleResponse<AboutInfo>(response);
+    return request<AboutInfo>(`${ROOT_URL}/api/about`);
   },
 
   // Status
   async getStatus(): Promise<StatusSnapshot> {
-    const response = await fetch(`${BASE_URL}/status`);
-    return handleResponse<StatusSnapshot>(response);
+    return request<StatusSnapshot>(`${BASE_URL}/status`);
   },
 
   // Connectors
   async getConnectors(): Promise<Connector[]> {
-    const response = await fetch(`${BASE_URL}/connectors`);
-    return handleResponse<Connector[]>(response);
+    return request<Connector[]>(`${BASE_URL}/connectors`);
   },
 
   async getConnector(id: number): Promise<Connector> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}`);
-    return handleResponse<Connector>(response);
+    return request<Connector>(`${BASE_URL}/connectors/${id}`);
   },
 
   async createConnector(params: Pick<Connector, 'voltage' | 'current' | 'phase'>): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors`, {
+    return request<StandardResponse>(`${BASE_URL}/connectors`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response, 201);
   },
 
   async updateConnector(id: number, params: Partial<Pick<Connector, 'voltage' | 'current' | 'phase'>>): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}`, {
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async deleteConnector(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}`, {
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}`, {
       method: 'DELETE',
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   // Connector Actions
   async plugIn(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/plug_in`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/plug_in`, { method: 'POST' });
   },
 
   async unplug(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/unplug`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/unplug`, { method: 'POST' });
   },
 
   async suspendEV(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/suspend_ev`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/suspend_ev`, { method: 'POST' });
   },
 
   async resumeCharging(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/resume_charging`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/resume_charging`, { method: 'POST' });
   },
 
   async startCharging(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/start-charging`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/start-charging`, { method: 'POST' });
   },
 
   async stopCharging(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/stop-charging`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/stop-charging`, { method: 'POST' });
   },
 
   async setRFID(id: number, rfidTag: string): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/rfid?rfid_tag=${encodeURIComponent(rfidTag)}`, {
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/rfid?rfid_tag=${encodeURIComponent(rfidTag)}`, {
       method: 'PUT',
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async clearRFID(id: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/connectors/${id}/rfid`, { method: 'DELETE' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/connectors/${id}/rfid`, { method: 'DELETE' });
   },
 
   // Sessions
   async getSessions(): Promise<Session[]> {
-    const response = await fetch(`${BASE_URL}/sessions`);
-    return handleResponse<Session[]>(response);
+    return request<Session[]>(`${BASE_URL}/sessions`);
   },
 
   async startSession(connectorId: number, maxEnergy: number, idTag?: string): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/sessions/start`, {
+    return request<StandardResponse>(`${BASE_URL}/sessions/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connector_id: connectorId, max_energy: maxEnergy, id_tag: idTag }),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async stopAllSessions(): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/sessions/stop`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/sessions/stop`, { method: 'POST' });
   },
 
   async getLastStoppedSession(): Promise<Session> {
-    const response = await fetch(`${BASE_URL}/sessions/last-stopped`);
-    return handleResponse<Session>(response);
+    return request<Session>(`${BASE_URL}/sessions/last-stopped`);
   },
 
   async getActiveSession(connectorId: number): Promise<Session> {
-    const response = await fetch(`${BASE_URL}/sessions/active?connector_id=${connectorId}`);
-    return handleResponse<Session>(response);
+    return request<Session>(`${BASE_URL}/sessions/active?connector_id=${connectorId}`);
   },
 
   // Configuration
   async getConfig(): Promise<Config> {
-    const response = await fetch(`${BASE_URL}/config`);
-    return handleResponse<Config>(response);
+    return request<Config>(`${BASE_URL}/config`);
   },
 
   async updateConfig(config: Partial<Config>): Promise<ConfigUpdateResponse> {
-    const response = await fetch(`${BASE_URL}/config`, {
+    return request<ConfigUpdateResponse>(`${BASE_URL}/config`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
-    return handleResponse<ConfigUpdateResponse>(response);
   },
 
   async saveConfig(): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/config/save`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/config/save`, { method: 'POST' });
   },
 
   // Reservations
   async getReservations(): Promise<Reservation[]> {
-    const response = await fetch(`${BASE_URL}/reservations`);
-    return handleResponse<Reservation[]>(response);
+    return request<Reservation[]>(`${BASE_URL}/reservations`);
   },
 
   async createReservation(reservation: Reservation): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/reservations`, {
+    return request<StandardResponse>(`${BASE_URL}/reservations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(reservation),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async cancelReservation(reservationId: number): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/reservations/${reservationId}`, {
+    return request<StandardResponse>(`${BASE_URL}/reservations/${reservationId}`, {
       method: 'DELETE',
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   // Timeline
@@ -221,24 +217,20 @@ export const api = {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) query.set(key, value.toString());
     });
-    const response = await fetch(`${BASE_URL}/timeline?${query.toString()}`);
-    return handleResponse<TimelineResponse>(response);
+    return request<TimelineResponse>(`${BASE_URL}/timeline?${query.toString()}`);
   },
 
   async clearTimeline(): Promise<void> {
-    const response = await fetch(`${BASE_URL}/timeline`, { method: 'DELETE' });
-    return handleResponse<void>(response);
+    return request<void>(`${BASE_URL}/timeline`, { method: 'DELETE' });
   },
 
   // Local Authorization List
   async getLocalAuthList(): Promise<LocalAuthList> {
-    const response = await fetch(`${BASE_URL}/local-auth-list`);
-    return handleResponse<LocalAuthList>(response);
+    return request<LocalAuthList>(`${BASE_URL}/local-auth-list`);
   },
 
   async getLocalAuthEntry(idTag: string): Promise<LocalAuthEntry> {
-    const response = await fetch(`${BASE_URL}/local-auth-list/${encodeURIComponent(idTag)}`);
-    return handleResponse<LocalAuthEntry>(response);
+    return request<LocalAuthEntry>(`${BASE_URL}/local-auth-list/${encodeURIComponent(idTag)}`);
   },
 
   async updateLocalAuthList(params: {
@@ -246,84 +238,72 @@ export const api = {
     update_type: 'Full' | 'Differential';
     entries: { id_tag: string; status: string; expiry?: string }[];
   }): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/local-auth-list`, {
+    return request<StandardResponse>(`${BASE_URL}/local-auth-list`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async deleteLocalAuthEntry(idTag: string): Promise<void> {
-    const response = await fetch(`${BASE_URL}/local-auth-list/${encodeURIComponent(idTag)}`, {
+    return request<void>(`${BASE_URL}/local-auth-list/${encodeURIComponent(idTag)}`, {
       method: 'DELETE',
     });
-    return handleResponse<void>(response);
   },
 
   async clearLocalAuthList(): Promise<void> {
-    const response = await fetch(`${BASE_URL}/local-auth-list`, { method: 'DELETE' });
-    return handleResponse<void>(response);
+    return request<void>(`${BASE_URL}/local-auth-list`, { method: 'DELETE' });
   },
 
   // Firmware & Diagnostics
   async getFirmwareStatus(): Promise<FirmwareStatus> {
-    const response = await fetch(`${BASE_URL}/firmware/status`);
-    return handleResponse<FirmwareStatus>(response);
+    return request<FirmwareStatus>(`${BASE_URL}/firmware/status`);
   },
 
   async triggerFirmwareUpdate(params: { location: string; retrieve_date: string }): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/firmware/trigger`, {
+    return request<StandardResponse>(`${BASE_URL}/firmware/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async cancelFirmwareUpdate(): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/firmware/cancel`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/firmware/cancel`, { method: 'POST' });
   },
 
   async getDiagnosticsStatus(): Promise<DiagnosticsStatus> {
-    const response = await fetch(`${BASE_URL}/diagnostics/status`);
-    return handleResponse<DiagnosticsStatus>(response);
+    return request<DiagnosticsStatus>(`${BASE_URL}/diagnostics/status`);
   },
 
   async triggerDiagnosticsUpload(params: { location: string; retries: number; retry_interval: number }): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/diagnostics/trigger`, {
+    return request<StandardResponse>(`${BASE_URL}/diagnostics/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async cancelDiagnosticsUpload(): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/diagnostics/cancel`, { method: 'POST' });
-    return handleResponse<StandardResponse>(response);
+    return request<StandardResponse>(`${BASE_URL}/diagnostics/cancel`, { method: 'POST' });
   },
 
   // Charging Profiles
   async getChargingProfiles(): Promise<ChargingProfile[]> {
-    const response = await fetch(`${BASE_URL}/charging-profiles`);
-    return handleResponse<ChargingProfile[]>(response);
+    return request<ChargingProfile[]>(`${BASE_URL}/charging-profiles`);
   },
 
   async getChargingProfile(profileId: number, connectorId?: number): Promise<ChargingProfile> {
     const query = connectorId ? `?connector_id=${connectorId}` : '';
-    const response = await fetch(`${BASE_URL}/charging-profiles/${profileId}${query}`);
-    return handleResponse<ChargingProfile>(response);
+    return request<ChargingProfile>(`${BASE_URL}/charging-profiles/${profileId}${query}`);
   },
 
   async createChargingProfile(params: { connector_id: number; profile: any }): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/charging-profiles`, {
+    return request<StandardResponse>(`${BASE_URL}/charging-profiles`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async deleteChargingProfiles(params: { profile_id?: number; connector_id?: number; purpose?: string } = {}): Promise<StandardResponse> {
@@ -331,47 +311,41 @@ export const api = {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) query.set(key, value.toString());
     });
-    const response = await fetch(`${BASE_URL}/charging-profiles?${query.toString()}`, {
+    return request<StandardResponse>(`${BASE_URL}/charging-profiles?${query.toString()}`, {
       method: 'DELETE',
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async getCompositeSchedule(connectorId: number, duration: number): Promise<{ periods: any[] }> {
-    const response = await fetch(`${BASE_URL}/charging-profiles/composite-schedule`, {
+    return request<{ periods: any[] }>(`${BASE_URL}/charging-profiles/composite-schedule`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connector_id: connectorId, duration }),
     });
-    return handleResponse<{ periods: any[] }>(response);
   },
 
   // OCPP Control
   async getOCPPConfigKeys(): Promise<{ key: string; value: string; readonly: boolean; supported: boolean }[]> {
-    const response = await fetch(`${BASE_URL}/ocpp/config-keys`);
-    return handleResponse<{ key: string; value: string; readonly: boolean; supported: boolean }[]>(response);
+    return request<{ key: string; value: string; readonly: boolean; supported: boolean }[]>(`${BASE_URL}/ocpp/config-keys`);
   },
 
   async updateOCPPConfigKey(key: string, value: string): Promise<void> {
-    const response = await fetch(`${BASE_URL}/ocpp/config-keys`, {
+    return request<void>(`${BASE_URL}/ocpp/config-keys`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, value }),
     });
-    return handleResponse<void>(response);
   },
 
   async ocppAuthorize(idTag: string): Promise<StandardResponse> {
-    const response = await fetch(`${BASE_URL}/ocpp/authorize`, {
+    return request<StandardResponse>(`${BASE_URL}/ocpp/authorize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id_tag: idTag }),
     });
-    return handleResponse<StandardResponse>(response);
   },
 
   async ocppHeartbeat(): Promise<void> {
-    const response = await fetch(`${BASE_URL}/ocpp/heartbeat`, { method: 'POST' });
-    return handleResponse<void>(response);
+    return request<void>(`${BASE_URL}/ocpp/heartbeat`, { method: 'POST' });
   },
 };

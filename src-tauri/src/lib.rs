@@ -1,26 +1,75 @@
-use tauri::process::Command;
+use std::sync::Mutex;
+use tauri::Manager;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+use std::fs::OpenOptions;
+use std::io::Write;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn log_to_terminal(message: String) {
+    println!("{}", message);
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("communication.log")
+        .unwrap();
+    if let Err(e) = writeln!(file, "{}", message) {
+        eprintln!("Couldn't write to log file: {}", e);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .setup(|_app| {
-            let (_rx, _child) = Command::new_sidecar("chargeghost-core")
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![log_to_terminal])
+        .setup(|app| {
+            let (mut rx, child) = app.shell().sidecar("chargeghost-core")
                 .expect("failed to create sidecar command")
                 .spawn()
                 .expect("failed to spawn sidecar");
 
+            // Log sidecar output and detect crashes
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            println!("[sidecar] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprintln!("[sidecar] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            eprintln!("[sidecar] terminated: code={:?} signal={:?}", payload.code, payload.signal);
+                        }
+                        CommandEvent::Error(err) => {
+                            eprintln!("[sidecar] error: {}", err);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+
+            // Store child handle so it can be killed on app exit
+            app.manage(Mutex::new(Some(child)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            if let Some(child) = app_handle
+                .state::<Mutex<Option<CommandChild>>>()
+                .lock()
+                .unwrap()
+                .take()
+            {
+                let _ = child.kill();
+            }
+        }
+    });
 }
 
 #[cfg(test)]
