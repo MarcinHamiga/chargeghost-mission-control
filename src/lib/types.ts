@@ -89,19 +89,19 @@ export interface Reservation {
   parent_id_tag: string | null;
 }
 
-export interface TimelineEvent {
-  id: number;
-  timestamp: string; // ISO8601
-  source: string;
-  event_type: string;
-  connector_id: number | null;
-  action: string | null;
-  details: any;
+export interface ChargingSchedulePeriod {
+  start_period: number;
+  limit: number;
+  number_phases?: number;
 }
 
-export interface TimelineResponse {
-  events: TimelineEvent[];
-  total: number;
+export interface ChargingProfile {
+  profile_id: number;
+  connector_id: number;
+  purpose: 'ChargePointMaxProfile' | 'TxDefaultProfile' | 'TxProfile';
+  stack_level: number;
+  charging_profile_kind: 'Absolute' | 'Recurring' | 'Relative';
+  schedule_period: ChargingSchedulePeriod[];
 }
 
 export interface LocalAuthEntry {
@@ -117,6 +117,21 @@ export interface LocalAuthList {
   max_entries: number;
   enabled: boolean;
   entries: LocalAuthEntry[];
+}
+
+export interface TimelineEvent {
+  id: number;
+  timestamp: string; // ISO8601
+  source: string;
+  event_type: string;
+  connector_id: number | null;
+  action: string | null;
+  details: any;
+}
+
+export interface TimelineResponse {
+  events: TimelineEvent[];
+  total: number;
 }
 
 export type FirmwareStatusValue =
@@ -141,19 +156,4 @@ export interface DiagnosticsStatus {
   status: DiagnosticsStatusValue;
   progress: number;
   error: string | null;
-}
-
-export interface ChargingProfile {
-  profile_id: number;
-  connector_id: number;
-  purpose: 'ChargePointMaxProfile' | 'TxDefaultProfile' | 'TxProfile';
-  stack_level: number;
-  charging_profile_kind: 'Absolute' | 'Recurring' | 'Relative';
-  schedule_period: ChargingSchedulePeriod[];
-}
-
-export interface ChargingSchedulePeriod {
-  start_period: number;
-  limit: number;
-  number_phases?: number;
 }
