@@ -14,6 +14,8 @@ import {
 } from "lucide-solid";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { state } from "./store/simulator";
+import { TelemetryChart } from "./components/TelemetryChart";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -125,7 +127,7 @@ export default function MissionControl() {
               <Activity size={20} class="text-accent-teal" />
               Power Delivery Profile
             </h2>
-            <div class="flex gap-2">
+            <div class="flex gap-4">
                 <span class="flex items-center gap-1.5 text-xs text-text-secondary">
                     <span class="w-2 h-2 rounded-full bg-accent-teal"></span> Active Power
                 </span>
@@ -135,21 +137,9 @@ export default function MissionControl() {
             </div>
           </div>
           
-          <div class="h-48 w-full flex items-end gap-1 px-2 group">
-            <For each={Array.from({length: 40})}>
-              {(_, i) => (
-                <div 
-                  class="flex-1 bg-accent-teal/20 rounded-t-sm transition-all duration-500 hover:bg-accent-teal"
-                  style={{ 
-                    height: `${20 + Math.sin(i() * 0.5) * 40 + Math.random() * 30}%`,
-                    "transition-delay": `${i() * 20}ms`
-                  }}
-                ></div>
-              )}
-            </For>
-            
-            {/* Hover tooltip simulation */}
-            <div class="absolute inset-0 bg-linear-to-t from-bg-card/20 to-transparent pointer-events-none"></div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TelemetryChart connectorId={1} label="Connector 1 Power" color="#14b8a6" />
+            <TelemetryChart connectorId={2} label="Connector 2 Power" color="#3b82f6" />
           </div>
         </section>
 
