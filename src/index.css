@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  /* ChargeGhost Dark Palette - Inspired by Github/Raycast Hybrid */
+  --color-bg-main: #0a0c10;
+  --color-bg-secondary: #0d1117;
+  --color-bg-tertiary: #161b22;
+  --color-bg-card: #1c2128;
+  
+  --color-accent-teal: #00ffcc;
+  --color-accent-teal-hover: #33ffd6;
+  --color-accent-teal-alpha: rgba(0, 255, 204, 0.1);
+  
+  --color-border-default: #30363d66;
+  --color-border-bright: #484f58;
+
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #6e7681;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-main text-text-primary antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-bg-card/40 border border-border-default backdrop-blur-md rounded-xl;
+  }
+  
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-text-secondary hover:bg-white/5 hover:text-white;
+  }
+
+  .sidebar-item.active {
+    @apply bg-accent-teal/10 text-accent-teal border border-accent-teal/20;
+  }
+}
