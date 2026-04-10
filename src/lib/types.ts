@@ -38,6 +38,32 @@ export interface Connector {
   id_tag: string | null;
 }
 
+export interface ConfigConnector {
+  voltage: number;
+  current: number;
+  phase: 1 | 3;
+}
+
+export interface ConfigResponse {
+  connection_url: string;
+  ocpp_id: string;
+  ocpp_password?: string | null;
+  charge_point_model: string;
+  charge_point_vendor: string;
+  connectors?: ConfigConnector[];
+  skip_tls_verify: boolean;
+  log_mode: string;
+  multi_evse_mode: boolean;
+  ev_battery_capacity: number;
+  ocpp_version: string;
+  persist_message_queue: boolean;
+  rfid_tag: string | null;
+  ignored_version?: string;
+  connector_type?: string;
+}
+
+export type Config = ConfigResponse;
+
 export interface Session {
   transaction_id: number;
   connector_id: number;
@@ -61,24 +87,18 @@ export interface StatusSnapshot {
   energy_meters: Record<string, EnergyMeter>;
 }
 
-export interface Config {
-  connection_url: string;
-  ocpp_id: string;
-  ocpp_password?: string;
-  charge_point_model: string;
-  charge_point_vendor: string;
-  skip_tls_verify: boolean;
-  log_mode: 'debug' | 'info' | 'warn' | 'error';
-  multi_evse_mode: boolean;
-  ev_battery_capacity: number;
-  ocpp_version: '1.6' | '2.0.1';
-  persist_message_queue: boolean;
-  rfid_tag: string;
-}
-
 export interface ConfigUpdateResponse extends StandardResponse {
   action: 'no-op' | 'bridge_restart_required' | 'runtime_rebuild_required' | 'rejected';
   changed_fields: string[];
+}
+
+export interface StoppedSession {
+  transaction_id: number;
+  connector_id: number;
+  energy_charged_wh: number;
+  meter_stop: number | null;
+  reason: string | null;
+  id_tag: string | null;
 }
 
 export interface Reservation {
@@ -150,17 +170,30 @@ export type FirmwareStatusValue =
   | 'InstallationFailed';
 
 export interface FirmwareStatus {
-  status: FirmwareStatusValue;
-  current_version: string;
-  target_version: string | null;
-  progress: number;
-  error: string | null;
+  status: string;
+  current_version?: string | null;
+  target_version?: string | null;
+  progress?: number;
+  error?: string | null;
+  location?: string | null;
+  retrieve_date?: string | null;
+  file_name?: string | null;
+  file_hash?: string | null;
 }
 
 export type DiagnosticsStatusValue = 'Idle' | 'Uploading' | 'Uploaded' | 'UploadFailed';
 
 export interface DiagnosticsStatus {
-  status: DiagnosticsStatusValue;
-  progress: number;
-  error: string | null;
+  status: string;
+  progress?: number;
+  error?: string | null;
+  location?: string | null;
+}
+
+export interface OcppConfigKey {
+  key: string;
+  value: string;
+  readonly: boolean;
+  supported?: boolean;
+  type?: string;
 }
