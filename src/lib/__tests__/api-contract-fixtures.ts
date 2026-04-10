@@ -32,6 +32,14 @@ export const runtimeFirmwarePayload = {
   FileHash: null,
 };
 
+export const runtimeFirmwareArtifactPayload = {
+  Status: "Downloading",
+  Location: "https://example.com/firmware.bin",
+  RetrieveDate: "2026-04-10T10:00:00Z",
+  FileName: "firmware.bin",
+  FileHash: "abc123",
+};
+
 export const runtimeDiagnosticsPayload = {
   Status: "Idle",
   Location: null,

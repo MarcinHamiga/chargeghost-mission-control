@@ -2,6 +2,7 @@ import {
   AboutInfo,
   ChargingProfile,
   Config,
+  ConfigPatchRequest,
   ConfigUpdateResponse,
   Connector,
   DiagnosticsStatus,
@@ -10,11 +11,20 @@ import {
   LocalAuthEntry,
   LocalAuthList,
   Reservation,
+  StoppedSession,
   Session,
+  OcppConfigKey,
   StandardResponse,
   StatusSnapshot,
   TimelineResponse,
 } from './types';
+import {
+  normalizeConfig,
+  normalizeDiagnosticsStatus,
+  normalizeFirmwareStatus,
+  normalizeOcppConfigKeys,
+  normalizeStoppedSession,
+} from './api-normalizers';
 import { logger } from './logger';
 
 const BASE_URL = 'http://localhost:8080/api/v1';
@@ -157,20 +167,28 @@ export const api = {
     return request<StandardResponse>(`${BASE_URL}/sessions/stop`, { method: 'POST' });
   },
 
-  async getLastStoppedSession(): Promise<Session> {
-    return request<Session>(`${BASE_URL}/sessions/last-stopped`);
+  async getLastStoppedSession(): Promise<StoppedSession> {
+    return normalizeStoppedSession(await request<unknown>(`${BASE_URL}/sessions/last-stopped`));
   },
 
   async getActiveSession(connectorId: number): Promise<Session> {
     return request<Session>(`${BASE_URL}/sessions/active?connector_id=${connectorId}`);
   },
 
-  // Configuration
-  async getConfig(): Promise<Config> {
-    return request<Config>(`${BASE_URL}/config`);
+  async getSessionInfo(): Promise<Session[]> {
+    return request<Session[]>(`${BASE_URL}/sessions/info`);
   },
 
-  async updateConfig(config: Partial<Config>): Promise<ConfigUpdateResponse> {
+  async getSessionByConnector(connectorId: number): Promise<Session> {
+    return request<Session>(`${BASE_URL}/sessions/${connectorId}`);
+  },
+
+  // Configuration
+  async getConfig(): Promise<Config> {
+    return normalizeConfig(await request<unknown>(`${BASE_URL}/config`));
+  },
+
+  async updateConfig(config: Partial<ConfigPatchRequest>): Promise<ConfigUpdateResponse> {
     return request<ConfigUpdateResponse>(`${BASE_URL}/config`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -224,6 +242,10 @@ export const api = {
     return request<void>(`${BASE_URL}/timeline`, { method: 'DELETE' });
   },
 
+  async getTimelineCount(): Promise<{ count: number }> {
+    return request<{ count: number }>(`${BASE_URL}/timeline/count`);
+  },
+
   // Local Authorization List
   async getLocalAuthList(): Promise<LocalAuthList> {
     return request<LocalAuthList>(`${BASE_URL}/local-auth-list`);
@@ -257,7 +279,7 @@ export const api = {
 
   // Firmware & Diagnostics
   async getFirmwareStatus(): Promise<FirmwareStatus> {
-    return request<FirmwareStatus>(`${BASE_URL}/firmware/status`);
+    return normalizeFirmwareStatus(await request<unknown>(`${BASE_URL}/firmware/status`));
   },
 
   async triggerFirmwareUpdate(params: { location: string; retrieve_date: string }): Promise<StandardResponse> {
@@ -273,7 +295,7 @@ export const api = {
   },
 
   async getDiagnosticsStatus(): Promise<DiagnosticsStatus> {
-    return request<DiagnosticsStatus>(`${BASE_URL}/diagnostics/status`);
+    return normalizeDiagnosticsStatus(await request<unknown>(`${BASE_URL}/diagnostics/status`));
   },
 
   async triggerDiagnosticsUpload(params: { location: string; retries: number; retry_interval: number }): Promise<StandardResponse> {
@@ -325,8 +347,8 @@ export const api = {
   },
 
   // OCPP Control
-  async getOCPPConfigKeys(): Promise<{ key: string; value: string; readonly: boolean; supported: boolean }[]> {
-    return request<{ key: string; value: string; readonly: boolean; supported: boolean }[]>(`${BASE_URL}/ocpp/config-keys`);
+  async getOCPPConfigKeys(): Promise<OcppConfigKey[]> {
+    return normalizeOcppConfigKeys(await request<unknown>(`${BASE_URL}/ocpp/config-keys`));
   },
 
   async updateOCPPConfigKey(key: string, value: string): Promise<void> {
@@ -347,5 +369,37 @@ export const api = {
 
   async ocppHeartbeat(): Promise<void> {
     return request<void>(`${BASE_URL}/ocpp/heartbeat`, { method: 'POST' });
+  },
+
+  async ocppRawStatusNotification(params: { connector_id: number; error_code: string; status: string }): Promise<StandardResponse> {
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/status-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+  },
+
+  async ocppRawMeterValues(params: { connector_id: number; transaction_id: number }): Promise<StandardResponse> {
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/meter-values`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+  },
+
+  async ocppRawDataTransfer(params: { vendor_id: string; message_id: string; data: string }): Promise<{ status: string; data?: string }> {
+    return request<{ status: string; data?: string }>(`${BASE_URL}/ocpp/raw/data-transfer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+  },
+
+  async ocppRawStartTransaction(): Promise<StandardResponse> {
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/start-transaction`, { method: 'POST' });
+  },
+
+  async ocppRawStopTransaction(): Promise<StandardResponse> {
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/stop-transaction`, { method: 'POST' });
   },
 };

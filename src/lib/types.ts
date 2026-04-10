@@ -64,6 +64,21 @@ export interface ConfigResponse {
 
 export type Config = ConfigResponse;
 
+export interface ConfigPatchRequest {
+  connection_url?: string;
+  ocpp_id?: string;
+  ocpp_password?: string;
+  charge_point_model?: string;
+  charge_point_vendor?: string;
+  skip_tls_verify?: boolean;
+  log_mode?: string;
+  multi_evse_mode?: boolean;
+  ev_battery_capacity?: number;
+  ocpp_version?: string;
+  persist_message_queue?: boolean;
+  rfid_tag?: string;
+}
+
 export interface Session {
   transaction_id: number;
   connector_id: number;
@@ -96,8 +111,8 @@ export interface StoppedSession {
   transaction_id: number;
   connector_id: number;
   energy_charged_wh: number;
-  meter_stop: number | null;
-  reason: string | null;
+  meter_stop: number;
+  reason: string;
   id_tag: string | null;
 }
 

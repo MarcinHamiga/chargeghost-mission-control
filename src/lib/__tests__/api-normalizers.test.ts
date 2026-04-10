@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   runtimeConfigPayload,
   runtimeDiagnosticsPayload,
+  runtimeFirmwareArtifactPayload,
   runtimeFirmwarePayload,
   runtimeLastStoppedPayload,
   runtimeOcppKeyPayload,
@@ -33,7 +34,18 @@ describe("api normalizers", () => {
   });
 
   it("normalizes firmware status from PascalCase fields", () => {
-    expect(normalizeFirmwareStatus(runtimeFirmwarePayload).status).toBe("Idle");
+    expect(normalizeFirmwareStatus(runtimeFirmwarePayload)).toMatchObject({
+      status: "Idle",
+      file_name: null,
+    });
+  });
+
+  it("preserves firmware file names without collapsing them into versions", () => {
+    expect(normalizeFirmwareStatus(runtimeFirmwareArtifactPayload)).toMatchObject({
+      status: "Downloading",
+      file_name: "firmware.bin",
+      current_version: undefined,
+    });
   });
 
   it("normalizes diagnostics status from PascalCase fields", () => {
