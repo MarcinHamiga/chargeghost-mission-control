@@ -1,4 +1,6 @@
 node_modules
 dist
 .worktrees/
-.worktrees/
+.DS_Store
+.idea/
+src-tauri/communication.log
