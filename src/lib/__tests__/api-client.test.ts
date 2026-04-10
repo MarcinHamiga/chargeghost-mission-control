@@ -37,7 +37,7 @@ describe("api client", () => {
     await expect(api.getConfig()).resolves.toMatchObject({
       ocpp_id: "CP_1",
       rfid_tag: null,
-      log_mode: "shallow",
+      log_mode: "info", // "shallow" maps to "info"
     });
   });
 
@@ -204,17 +204,11 @@ describe("api client", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       url,
-      expect.objectContaining(
-        body
-          ? {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            }
-          : {
-              method: "POST",
-            },
-      ),
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      }),
     );
   });
 });

@@ -44,7 +44,10 @@ export interface ConfigConnector {
   phase: 1 | 3;
 }
 
-export interface ConfigResponse {
+export type ConfigLogMode = 'debug' | 'info' | 'warn' | 'error';
+export type OcppVersion = '1.6' | '2.0.1';
+
+export interface Config {
   connection_url: string;
   ocpp_id: string;
   ocpp_password?: string | null;
@@ -52,31 +55,14 @@ export interface ConfigResponse {
   charge_point_vendor: string;
   connectors?: ConfigConnector[];
   skip_tls_verify: boolean;
-  log_mode: string;
+  log_mode: ConfigLogMode;
   multi_evse_mode: boolean;
   ev_battery_capacity: number;
-  ocpp_version: string;
+  ocpp_version: OcppVersion;
   persist_message_queue: boolean;
   rfid_tag: string | null;
   ignored_version?: string;
   connector_type?: string;
-}
-
-export type Config = ConfigResponse;
-
-export interface ConfigPatchRequest {
-  connection_url?: string;
-  ocpp_id?: string;
-  ocpp_password?: string;
-  charge_point_model?: string;
-  charge_point_vendor?: string;
-  skip_tls_verify?: boolean;
-  log_mode?: string;
-  multi_evse_mode?: boolean;
-  ev_battery_capacity?: number;
-  ocpp_version?: string;
-  persist_message_queue?: boolean;
-  rfid_tag?: string;
 }
 
 export interface Session {
@@ -185,7 +171,7 @@ export type FirmwareStatusValue =
   | 'InstallationFailed';
 
 export interface FirmwareStatus {
-  status: string;
+  status: FirmwareStatusValue;
   current_version?: string | null;
   target_version?: string | null;
   progress?: number;
@@ -199,7 +185,7 @@ export interface FirmwareStatus {
 export type DiagnosticsStatusValue = 'Idle' | 'Uploading' | 'Uploaded' | 'UploadFailed';
 
 export interface DiagnosticsStatus {
-  status: string;
+  status: DiagnosticsStatusValue;
   progress?: number;
   error?: string | null;
   location?: string | null;

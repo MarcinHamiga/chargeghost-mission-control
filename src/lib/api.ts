@@ -2,7 +2,6 @@ import {
   AboutInfo,
   ChargingProfile,
   Config,
-  ConfigPatchRequest,
   ConfigUpdateResponse,
   Connector,
   DiagnosticsStatus,
@@ -188,7 +187,7 @@ export const api = {
     return normalizeConfig(await request<unknown>(`${BASE_URL}/config`));
   },
 
-  async updateConfig(config: Partial<ConfigPatchRequest>): Promise<ConfigUpdateResponse> {
+  async updateConfig(config: Partial<Config>): Promise<ConfigUpdateResponse> {
     return request<ConfigUpdateResponse>(`${BASE_URL}/config`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -396,10 +395,16 @@ export const api = {
   },
 
   async ocppRawStartTransaction(): Promise<StandardResponse> {
-    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/start-transaction`, { method: 'POST' });
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/start-transaction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 
   async ocppRawStopTransaction(): Promise<StandardResponse> {
-    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/stop-transaction`, { method: 'POST' });
+    return request<StandardResponse>(`${BASE_URL}/ocpp/raw/stop-transaction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 };

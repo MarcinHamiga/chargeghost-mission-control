@@ -1,6 +1,6 @@
 import { createSignal, createResource, For, Show } from "solid-js";
 import { api } from "../lib/api";
-import type { ConfigPatchRequest } from "../lib/types";
+import type { Config } from "../lib/types";
 import { addToast } from "../store/toast";
 import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
 import { clsx } from "clsx";
@@ -15,7 +15,7 @@ export function SettingsPanel() {
   const [ocppKeys, { refetch: refetchKeys }] = createResource(() => api.getOCPPConfigKeys());
   const [saving, setSaving] = createSignal(false);
   const [saveMsg, setSaveMsg] = createSignal<{ type: "success" | "error"; text: string } | null>(null);
-  const [dirty, setDirty] = createSignal<Partial<ConfigPatchRequest>>({});
+  const [dirty, setDirty] = createSignal<Partial<Config>>({});
   const [ocppExpanded, setOcppExpanded] = createSignal(false);
   const [editingKey, setEditingKey] = createSignal<string | null>(null);
   const [editValue, setEditValue] = createSignal("");
@@ -72,12 +72,12 @@ export function SettingsPanel() {
     }
   };
 
-  const currentValue = (field: keyof ConfigPatchRequest) => {
+  const currentValue = (field: keyof Config) => {
     if (field in dirty()) return dirty()[field];
     return (config() as any)?.[field];
   };
 
-  const updateField = (field: keyof ConfigPatchRequest, value: ConfigPatchRequest[keyof ConfigPatchRequest]) => {
+  const updateField = (field: keyof Config, value: Config[keyof Config]) => {
     setDirty((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -120,7 +120,7 @@ export function SettingsPanel() {
   };
 
   type ConfigField = {
-    key: keyof ConfigPatchRequest;
+    key: keyof Config;
     label: string;
     type: "text" | "password" | "number" | "select" | "toggle";
     icon?: any;
