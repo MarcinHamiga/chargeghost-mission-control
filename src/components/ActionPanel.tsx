@@ -169,16 +169,16 @@ export function ActionPanel() {
                 class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none" />
             </div>
             <div class="space-y-1">
-              <label class="text-[9px] font-bold uppercase tracking-widest text-text-muted">ID Tag (optional)</label>
+              <label class="text-[9px] font-bold uppercase tracking-widest text-text-muted">ID Tag</label>
               <input type="text" value={sessionIdTag()} onInput={(e) => setSessionIdTag(e.currentTarget.value)} placeholder="e.g. Tag001"
                 class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none" />
             </div>
             <button
               onClick={() => handleAction("startSession", async () => {
-                await api.startSession(connectorId(), sessionMaxEnergy(), sessionIdTag() || undefined);
+                await api.startSession(connectorId(), sessionMaxEnergy(), sessionIdTag());
                 setShowStartSession(false);
               })}
-              disabled={loading() !== null}
+              disabled={loading() !== null || !sessionIdTag()}
               class="w-full px-2 py-1.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold hover:bg-blue-500/30 transition-colors disabled:opacity-50"
             >
               Start Session

@@ -145,7 +145,7 @@ export const api = {
     return request<Session[]>(`${BASE_URL}/sessions`);
   },
 
-  async startSession(connectorId: number, maxEnergy: number, idTag?: string): Promise<StandardResponse> {
+  async startSession(connectorId: number, maxEnergy: number, idTag: string): Promise<StandardResponse> {
     return request<StandardResponse>(`${BASE_URL}/sessions/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
