@@ -1,5 +1,6 @@
 import { createSignal, createResource, For, Show } from "solid-js";
 import { api } from "../lib/api";
+import type { Config } from "../lib/types";
 import { addToast } from "../store/toast";
 import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
 import { clsx } from "clsx";
@@ -14,7 +15,7 @@ export function SettingsPanel() {
   const [ocppKeys, { refetch: refetchKeys }] = createResource(() => api.getOCPPConfigKeys());
   const [saving, setSaving] = createSignal(false);
   const [saveMsg, setSaveMsg] = createSignal<{ type: "success" | "error"; text: string } | null>(null);
-  const [dirty, setDirty] = createSignal<Record<string, any>>({});
+  const [dirty, setDirty] = createSignal<Partial<Config>>({});
   const [ocppExpanded, setOcppExpanded] = createSignal(false);
   const [editingKey, setEditingKey] = createSignal<string | null>(null);
   const [editValue, setEditValue] = createSignal("");
@@ -71,12 +72,12 @@ export function SettingsPanel() {
     }
   };
 
-  const currentValue = (field: string) => {
+  const currentValue = (field: keyof Config) => {
     if (field in dirty()) return dirty()[field];
     return (config() as any)?.[field];
   };
 
-  const updateField = (field: string, value: any) => {
+  const updateField = (field: keyof Config, value: Config[keyof Config]) => {
     setDirty((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -118,7 +119,15 @@ export function SettingsPanel() {
     }
   };
 
-  const configFields = [
+  type ConfigField = {
+    key: keyof Config;
+    label: string;
+    type: "text" | "password" | "number" | "select" | "toggle";
+    icon?: any;
+    options?: string[];
+  };
+
+  const configFields: ConfigField[] = [
     { key: "connection_url", label: "OCPP Connection URL", type: "text", icon: Server },
     { key: "ocpp_id", label: "Charge Point ID", type: "text", icon: Key },
     { key: "ocpp_password", label: "OCPP Password", type: "password", icon: Shield },

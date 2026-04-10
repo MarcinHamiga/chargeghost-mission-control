@@ -543,17 +543,23 @@ export function SimulatorView() {
             </div>
 
             <Show when={lastStopped()}>
-              {(session) => (
-                <div class="p-3 rounded-lg border border-border-default bg-bg-main/50 mb-3">
-                  <div class="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Last Completed Session</div>
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                    <div><span class="text-text-muted">Tx #</span> <span class="font-mono font-bold">{session().transaction_id}</span></div>
-                    <div><span class="text-text-muted">Connector</span> <span class="font-mono font-bold">{session().connector_id}</span></div>
-                    <div><span class="text-text-muted">Energy</span> <span class="font-mono font-bold">{(session().energy_charged_wh / 1000).toFixed(2)} kWh</span></div>
-                    <div><span class="text-text-muted">SoC</span> <span class="font-mono font-bold">{session().state_of_charge}%</span></div>
+              {(session) => {
+                const stopped = session();
+                if (!stopped) return null;
+
+                return (
+                  <div class="p-3 rounded-lg border border-border-default bg-bg-main/50 mb-3">
+                    <div class="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Last Completed Session</div>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                      <div><span class="text-text-muted">Tx #</span> <span class="font-mono font-bold">{stopped.transaction_id}</span></div>
+                      <div><span class="text-text-muted">Connector</span> <span class="font-mono font-bold">{stopped.connector_id}</span></div>
+                      <div><span class="text-text-muted">Energy</span> <span class="font-mono font-bold">{(stopped.energy_charged_wh / 1000).toFixed(2)} kWh</span></div>
+                      <div><span class="text-text-muted">Meter stop</span> <span class="font-mono font-bold">{stopped.meter_stop !== null ? `${(stopped.meter_stop / 1000).toFixed(2)} kWh` : "N/A"}</span></div>
+                      <div><span class="text-text-muted">Reason</span> <span class="font-mono font-bold">{stopped.reason ?? "Unknown"}</span></div>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              }}
             </Show>
 
             <Show when={!lastStopped() && !showSessionHistory()}>
@@ -906,19 +912,27 @@ export function SimulatorView() {
                     <span class="text-text-muted">Status</span>
                     <span class="font-mono font-bold">{fw().status}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-text-muted">Version</span>
-                    <span class="font-mono">{fw().current_version}</span>
-                  </div>
                   <Show when={fw().target_version}>
                     <div class="flex justify-between">
                       <span class="text-text-muted">Target</span>
                       <span class="font-mono">{fw().target_version}</span>
                     </div>
                   </Show>
+                  <Show when={fw().current_version}>
+                    <div class="flex justify-between">
+                      <span class="text-text-muted">Version</span>
+                      <span class="font-mono">{fw().current_version}</span>
+                    </div>
+                  </Show>
+                  <Show when={fw().file_name}>
+                    <div class="flex justify-between">
+                      <span class="text-text-muted">File</span>
+                      <span class="font-mono">{fw().file_name}</span>
+                    </div>
+                  </Show>
                   <Show when={fw().status !== "Idle"}>
                     <div class="w-full h-1.5 bg-bg-main rounded-full overflow-hidden mt-2">
-                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${fw().progress}%` }} />
+                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${fw().progress ?? 0}%` }} />
                     </div>
                   </Show>
                   <Show when={fw().error}>
@@ -992,7 +1006,7 @@ export function SimulatorView() {
                   </div>
                   <Show when={diag().status !== "Idle"}>
                     <div class="w-full h-1.5 bg-bg-main rounded-full overflow-hidden mt-2">
-                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${diag().progress}%` }} />
+                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${diag().progress ?? 0}%` }} />
                     </div>
                   </Show>
                   <Show when={diag().error}>

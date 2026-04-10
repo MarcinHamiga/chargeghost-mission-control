@@ -1,0 +1,214 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../logger", () => ({
+  logger: {
+    restRequest: vi.fn(),
+    restResponse: vi.fn(),
+  },
+}));
+import { api } from "../api";
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status });
+}
+
+describe("api client", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("normalizes the config payload", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        connection_url: "wss://localhost:3000/CP_1",
+        ocpp_id: "CP_1",
+        charge_point_model: "ChargeGhostV1",
+        charge_point_vendor: "ChargeGhost",
+        connectors: [{ voltage: 230, current: 32, phase: 1 }],
+        skip_tls_verify: false,
+        log_mode: "shallow",
+        multi_evse_mode: false,
+        ev_battery_capacity: 55,
+        ocpp_version: "1.6",
+        persist_message_queue: false,
+        rfid_tag: null,
+      }),
+    );
+
+    await expect(api.getConfig()).resolves.toMatchObject({
+      ocpp_id: "CP_1",
+      rfid_tag: null,
+      log_mode: "info", // "shallow" maps to "info"
+    });
+  });
+
+  it("sends only writable config fields on PATCH", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        action: "no-op",
+        changed_fields: ["log_mode"],
+        message: "unchanged",
+      }),
+    );
+
+    await api.updateConfig({
+      log_mode: "debug",
+      connection_url: "ws://csms.example.com/ocpp",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/config",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          log_mode: "debug",
+          connection_url: "ws://csms.example.com/ocpp",
+        }),
+      }),
+    );
+  });
+
+  it("normalizes the stopped session payload", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        transaction_id: -1,
+        connector_id: 1,
+        energy_charged_wh: 76.0533333333341,
+        meter_stop: 76.0533333333341,
+        reason: "user_requested",
+        id_tag: null,
+      }),
+    );
+
+    await expect(api.getLastStoppedSession()).resolves.toMatchObject({
+      transaction_id: -1,
+      meter_stop: 76.0533333333341,
+      reason: "user_requested",
+    });
+  });
+
+  it("uses the documented session info endpoints", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse([]));
+
+    await api.getSessionInfo();
+    await api.getSessionByConnector(7);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:8080/api/v1/sessions/info", expect.any(Object));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:8080/api/v1/sessions/7", expect.any(Object));
+  });
+
+  it("uses the documented timeline count endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ count: 250 }));
+
+    await expect(api.getTimelineCount()).resolves.toEqual({ count: 250 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/timeline/count",
+      expect.any(Object),
+    );
+  });
+
+  it("normalizes firmware and diagnostics status payloads", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        jsonResponse({
+          Status: "Downloading",
+          Location: "https://example.com/firmware.bin",
+          RetrieveDate: "2026-04-10T10:00:00Z",
+          FileName: "firmware.bin",
+          FileHash: "abc123",
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          Status: "Uploading",
+          Location: "https://example.com/diagnostics",
+        }),
+      );
+
+    await expect(api.getFirmwareStatus()).resolves.toMatchObject({
+      status: "Downloading",
+      file_name: "firmware.bin",
+      current_version: undefined,
+    });
+    await expect(api.getDiagnosticsStatus()).resolves.toMatchObject({
+      status: "Uploading",
+      location: "https://example.com/diagnostics",
+    });
+  });
+
+  it("preserves OCPP config key metadata", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse([
+        { key: "ConnectionTimeOut", value: "30", readonly: false, type: "int" },
+      ]),
+    );
+
+    await expect(api.getOCPPConfigKeys()).resolves.toEqual([
+      { key: "ConnectionTimeOut", value: "30", readonly: false, supported: undefined, type: "int" },
+    ]);
+  });
+
+  it("supports raw OCPP requests", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ status: "Accepted", data: '{"result":"ok"}' }),
+    );
+
+    await expect(
+      api.ocppRawDataTransfer({ vendor_id: "com.example", message_id: "CustomMessage", data: "{\"key\":\"value\"}" }),
+    ).resolves.toEqual({ status: "Accepted", data: '{"result":"ok"}' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/ocpp/raw/data-transfer",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendor_id: "com.example",
+          message_id: "CustomMessage",
+          data: "{\"key\":\"value\"}",
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "status notification",
+      () => api.ocppRawStatusNotification({ connector_id: 1, error_code: "NoError", status: "Available" }),
+      "http://localhost:8080/api/v1/ocpp/raw/status-notification",
+      { connector_id: 1, error_code: "NoError", status: "Available" },
+    ],
+    [
+      "meter values",
+      () => api.ocppRawMeterValues({ connector_id: 1, transaction_id: 1001 }),
+      "http://localhost:8080/api/v1/ocpp/raw/meter-values",
+      { connector_id: 1, transaction_id: 1001 },
+    ],
+    [
+      "start transaction",
+      () => api.ocppRawStartTransaction(),
+      "http://localhost:8080/api/v1/ocpp/raw/start-transaction",
+      undefined,
+    ],
+    [
+      "stop transaction",
+      () => api.ocppRawStopTransaction(),
+      "http://localhost:8080/api/v1/ocpp/raw/stop-transaction",
+      undefined,
+    ],
+  ])("posts the raw OCPP %s endpoint", async (_label, requestFn, url, body) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ success: true, message: "ok" }));
+
+    await expect((requestFn as () => Promise<unknown>)()).resolves.toEqual({ success: true, message: "ok" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      url,
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      }),
+    );
+  });
+});
