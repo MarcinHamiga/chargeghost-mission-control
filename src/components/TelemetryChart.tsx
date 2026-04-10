@@ -13,13 +13,35 @@ export const TelemetryChart = (props: TelemetryChartProps) => {
   let canvasRef!: HTMLCanvasElement;
   let chartInstance: Chart | null = null;
   const TIME_WINDOW_MS = 60_000; // 60 seconds
-  const MAX_POINTS = 60;
 
   const [currentValue, setCurrentValue] = createSignal<number | null>(null);
 
   let history: { x: number; y: number }[] = [];
   let lastReadingWh: number | null = null;
   let lastTimestamp: number | null = null;
+
+  const updateScaleWindow = (now: number) => {
+    const xScale = chartInstance?.options.scales?.x;
+    if (!xScale) return;
+
+    xScale.min = now - TIME_WINDOW_MS;
+    xScale.max = now;
+  };
+
+  const updateYScaleMax = (maxValue: number) => {
+    const yScale = chartInstance?.options.scales?.y;
+    if (!yScale) return;
+
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+    const normalized = maxValue / magnitude;
+    let multiplier;
+    if (normalized <= 1.2) multiplier = 1.2;
+    else if (normalized <= 2) multiplier = 2;
+    else if (normalized <= 5) multiplier = 5;
+    else multiplier = 10;
+
+    yScale.max = multiplier * magnitude;
+  };
 
   onMount(() => {
     const config: any = {
@@ -100,9 +122,7 @@ export const TelemetryChart = (props: TelemetryChartProps) => {
     // we can use a small interval to update the chart's x-scale min/max.
     const intervalId = setInterval(() => {
       if (chartInstance) {
-        const now = Date.now();
-        chartInstance.options.scales.x.min = now - TIME_WINDOW_MS;
-        chartInstance.options.scales.x.max = now;
+        updateScaleWindow(Date.now());
         chartInstance.update('none'); // Update without animation
       }
     }, 1000);
@@ -156,19 +176,11 @@ export const TelemetryChart = (props: TelemetryChartProps) => {
     // Update the chart dataset
     if (chartInstance) {
       chartInstance.data.datasets[0].data = history;
-      chartInstance.options.scales.x.min = now - TIME_WINDOW_MS;
-      chartInstance.options.scales.x.max = now;
+      updateScaleWindow(now);
 
       // Adjust max Y dynamically rounded to sensible values
       const maxVal = Math.max(...history.map((d) => d.y), 100);
-      const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
-      const normalized = maxVal / magnitude;
-      let multiplier;
-      if (normalized <= 1.2) multiplier = 1.2;
-      else if (normalized <= 2) multiplier = 2;
-      else if (normalized <= 5) multiplier = 5;
-      else multiplier = 10;
-      chartInstance.options.scales.y.max = multiplier * magnitude;
+      updateYScaleMax(maxVal);
 
       chartInstance.update('none');
     }
