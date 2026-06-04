@@ -5,6 +5,11 @@ vi.mock("../logger", () => ({
     restResponse: vi.fn(),
   },
 }));
+import {
+  runtimeChargingProfilePostPayload,
+  runtimeLocalAuthPutPayload,
+  runtimeSessionStartPayload,
+} from "./api-contract-fixtures";
 import { api } from "../api";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -45,7 +50,7 @@ describe("api client", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({
         success: true,
-        action: "no-op",
+        action: "applied",
         changed_fields: ["log_mode"],
         message: "unchanged",
       }),
@@ -96,6 +101,125 @@ describe("api client", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:8080/api/v1/sessions/info", expect.any(Object));
     expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:8080/api/v1/sessions/7", expect.any(Object));
+  });
+
+  it("starts a session without max_energy", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, message: "Session started" }),
+    );
+
+    await api.startSession(1, { id_tag: "RFID001", timeout_seconds: 30 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/sessions/start",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(runtimeSessionStartPayload),
+      }),
+    );
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).not.toHaveProperty("max_energy");
+  });
+
+  it("passes timeout_seconds to start-charging", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, message: "ok" }),
+    );
+
+    await api.startCharging(2, 45);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/connectors/2/start-charging?timeout_seconds=45",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("sends PascalCase local auth PUT entries", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, message: "ok" }),
+    );
+
+    await api.updateLocalAuthList(runtimeLocalAuthPutPayload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/local-auth-list",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify(runtimeLocalAuthPutPayload),
+      }),
+    );
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.entries[0]).toHaveProperty("IDTag");
+    expect(body.entries[0]).not.toHaveProperty("id_tag");
+  });
+
+  it("posts charging profiles in engine.ChargingProfile shape", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, message: "installed" }),
+    );
+
+    await api.createChargingProfile({
+      connector_id: 1,
+      profile: {
+        profile_id: 10,
+        connector_id: 1,
+        purpose: "TxDefaultProfile",
+        stack_level: 0,
+        charging_profile_kind: "Absolute",
+        charging_rate_unit: "W",
+        schedule_period: [
+          { start_period: 0, limit: 7400 },
+          { start_period: 3600, limit: 11000 },
+        ],
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/charging-profiles",
+      expect.objectContaining({
+        body: JSON.stringify(runtimeChargingProfilePostPayload),
+      }),
+    );
+  });
+
+  it("fetches OCPP link status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        version: "1.6",
+        connected: true,
+        reconnectCount: 0,
+        upSince: "2025-04-09T11:00:00Z",
+        csmsUrl: "wss://csms.example.com/ocpp",
+        ocppId: "CP_1",
+        heartbeatSuccesses: 1,
+        heartbeatFailures: 0,
+      }),
+    );
+
+    await expect(api.getOcppStatus()).resolves.toMatchObject({
+      connected: true,
+      csmsUrl: "wss://csms.example.com/ocpp",
+    });
+  });
+
+  it("sets connector availability", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ success: true, message: "scheduled" }, 202),
+    );
+
+    await api.setConnectorAvailability(1, "Inoperative");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/connectors/1/availability",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ type: "Inoperative" }),
+      }),
+    );
   });
 
   it("uses the documented timeline count endpoint", async () => {
@@ -187,15 +311,24 @@ describe("api client", () => {
     ],
     [
       "start transaction",
-      () => api.ocppRawStartTransaction(),
+      () =>
+        api.ocppRawStartTransaction({
+          connector_id: 1,
+          id_tag: "RFID001",
+          meter_start: 12500,
+        }),
       "http://localhost:8080/api/v1/ocpp/raw/start-transaction",
-      undefined,
+      { connector_id: 1, id_tag: "RFID001", meter_start: 12500 },
     ],
     [
       "stop transaction",
-      () => api.ocppRawStopTransaction(),
+      () =>
+        api.ocppRawStopTransaction({
+          transaction_id: 1001,
+          reason: "Local",
+        }),
       "http://localhost:8080/api/v1/ocpp/raw/stop-transaction",
-      undefined,
+      { transaction_id: 1001, reason: "Local" },
     ],
   ])("posts the raw OCPP %s endpoint", async (_label, requestFn, url, body) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({ success: true, message: "ok" }));

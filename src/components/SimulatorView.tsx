@@ -1,5 +1,5 @@
 import { createSignal, createResource, createEffect, For, Show, onCleanup } from "solid-js";
-import { api } from "../lib/api";
+import { api, APIError } from "../lib/api";
 import { state, setState } from "../store/simulator";
 import { addToast } from "../store/toast";
 import {
@@ -14,6 +14,10 @@ import { ActionPanel } from "./ActionPanel";
 
 function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
+}
+
+function defaultChargingProfileLimit(unit: "W" | "A"): number {
+  return unit === "A" ? 32 : 7400;
 }
 
 export function SimulatorView() {
@@ -55,7 +59,22 @@ export function SimulatorView() {
   const [profilePurpose, setProfilePurpose] = createSignal<string>("TxDefaultProfile");
   const [profileStackLevel, setProfileStackLevel] = createSignal(0);
   const [profileKind, setProfileKind] = createSignal<string>("Absolute");
-  const [profilePeriods, setProfilePeriods] = createSignal<{ start_period: number; limit: number; number_phases?: number }[]>([{ start_period: 0, limit: 32 }]);
+  const [profileRateUnit, setProfileRateUnit] = createSignal<"W" | "A">("W");
+  const [profilePeriods, setProfilePeriods] = createSignal<{ start_period: number; limit: number; number_phases?: number }[]>([
+    { start_period: 0, limit: defaultChargingProfileLimit("W") },
+  ]);
+
+  const appendProfilePeriod = () => {
+    const periods = profilePeriods();
+    const last = periods[periods.length - 1];
+    setProfilePeriods([
+      ...periods,
+      {
+        start_period: last ? last.start_period + 3600 : 0,
+        limit: defaultChargingProfileLimit(profileRateUnit()),
+      },
+    ]);
+  };
 
   // Composite schedule
   const [compositeConnectorId, setCompositeConnectorId] = createSignal(1);
@@ -159,17 +178,32 @@ export function SimulatorView() {
         profile: {
           profile_id: Date.now() % 100000,
           connector_id: profileConnectorId(),
-          purpose: profilePurpose(),
+          purpose: profilePurpose() as "ChargePointMaxProfile" | "TxDefaultProfile" | "TxProfile",
           stack_level: profileStackLevel(),
-          charging_profile_kind: profileKind(),
+          charging_profile_kind: profileKind() as "Absolute" | "Recurring" | "Relative",
+          charging_rate_unit: profileRateUnit(),
           schedule_period: profilePeriods(),
         },
       });
       setAddingProfile(false);
       refetchProfiles();
       addToast("success", "Charging profile created");
-    } catch (e: any) {
-      addToast("error", `Failed to create charging profile: ${e.message || e}`);
+    } catch (e: unknown) {
+      const msg = e instanceof APIError && e.status === 409
+        ? `Profile install conflict: ${e.message}`
+        : e instanceof Error ? e.message : String(e);
+      addToast("error", `Failed to create charging profile: ${msg}`);
+    }
+  };
+
+  const handleSetAvailability = async (type: "Operative" | "Inoperative") => {
+    const id = state.selectedConnectorId;
+    try {
+      const result = await api.setConnectorAvailability(id, type);
+      await refreshState();
+      addToast("info", result.message || `Availability set to ${type}`);
+    } catch (e: unknown) {
+      addToast("error", e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -242,18 +276,34 @@ export function SimulatorView() {
     }
   };
 
-  // Auto-refresh firmware/diagnostics when active
+  // Auto-refresh firmware/diagnostics when active (fallback if WS events missed)
   const fwDiagInterval = setInterval(() => {
     if (firmware()?.status && firmware()!.status !== "Idle") refetchFirmware();
     if (diagnostics()?.status && diagnostics()!.status !== "Idle") refetchDiagnostics();
   }, 3000);
   onCleanup(() => clearInterval(fwDiagInterval));
 
+  createEffect(() => {
+    state.wsInvalidation.firmware;
+    refetchFirmware();
+  });
+  createEffect(() => {
+    state.wsInvalidation.diagnostics;
+    refetchDiagnostics();
+  });
+  createEffect(() => {
+    state.wsInvalidation.chargingProfiles;
+    refetchProfiles();
+  });
+
   // Close editing form when connector selection changes
   createEffect(() => {
     state.selectedConnectorId; // track
     setEditingConnector(false);
   });
+
+  const activeReservations = () =>
+    state.snapshot?.reservations ?? reservations() ?? [];
 
   const currentConnector = () => state.snapshot?.connectors.find(c => c.id === state.selectedConnectorId);
   const connectorSession = () => state.snapshot?.active_sessions.find(s => s.connector_id === state.selectedConnectorId);
@@ -354,6 +404,18 @@ export function SimulatorView() {
                     )}>
                       {connector().status}
                     </span>
+                    <button
+                      onClick={() => handleSetAvailability("Inoperative")}
+                      class="px-2 py-0.5 rounded text-[9px] border border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
+                    >
+                      Inoperative
+                    </button>
+                    <button
+                      onClick={() => handleSetAvailability("Operative")}
+                      class="px-2 py-0.5 rounded text-[9px] border border-green-500/30 text-green-300 hover:bg-green-500/10"
+                    >
+                      Operative
+                    </button>
                     <Show when={!editingConnector()}>
                       <button
                         onClick={startEditingConnector}
@@ -607,8 +669,8 @@ export function SimulatorView() {
           <h3 class="font-bold text-sm flex items-center gap-2">
             <Calendar size={16} class="text-text-muted" />
             Reservations
-            <Show when={reservations()}>
-              <span class="text-[10px] font-normal text-text-muted">({reservations()!.length})</span>
+            <Show when={activeReservations().length > 0}>
+              <span class="text-[10px] font-normal text-text-muted">({activeReservations().length})</span>
             </Show>
           </h3>
           <button
@@ -664,11 +726,11 @@ export function SimulatorView() {
           </div>
         </Show>
 
-        <Show when={reservations() && reservations()!.length > 0} fallback={
+        <Show when={activeReservations().length > 0} fallback={
           <p class="text-xs text-text-muted italic">No active reservations</p>
         }>
           <div class="space-y-2">
-            <For each={reservations()}>
+            <For each={activeReservations()}>
               {(res) => (
                 <div class="flex items-center justify-between p-3 rounded-lg border border-border-default bg-bg-main/50">
                   <div class="flex items-center gap-4 text-xs">
@@ -779,6 +841,14 @@ export function SimulatorView() {
                     <option value="Relative">Relative</option>
                   </select>
                 </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Rate Unit</label>
+                  <select value={profileRateUnit()} onChange={(e) => setProfileRateUnit(e.currentTarget.value as "W" | "A")}
+                    class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs focus:border-accent-teal/50 focus:outline-none">
+                    <option value="W">Watts (W)</option>
+                    <option value="A">Amps (A)</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">Schedule Periods</label>
@@ -793,7 +863,7 @@ export function SimulatorView() {
                           setProfilePeriods(p);
                         }}
                         class="w-20 bg-bg-main border border-border-default rounded px-2 py-1 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none" />
-                      <input type="number" value={period.limit} placeholder="Limit (A)"
+                      <input type="number" value={period.limit} placeholder={`Limit (${profileRateUnit()})`}
                         onInput={(e) => {
                           const p = [...profilePeriods()];
                           p[idx()] = { ...p[idx()], limit: Number(e.currentTarget.value) };
@@ -805,7 +875,7 @@ export function SimulatorView() {
                     </div>
                   )}
                 </For>
-                <button onClick={() => setProfilePeriods([...profilePeriods(), { start_period: 0, limit: 32 }])}
+                <button onClick={appendProfilePeriod}
                   class="text-[10px] text-accent-teal hover:text-accent-teal/80 mt-1">+ Add Period</button>
               </div>
               <div class="flex gap-2">

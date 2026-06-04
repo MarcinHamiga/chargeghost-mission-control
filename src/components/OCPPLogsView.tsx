@@ -12,7 +12,10 @@ function cn(...inputs: any[]) {
 export function OCPPLogsView() {
   const [search, setSearch] = createSignal("");
   const [sourceFilter, setSourceFilter] = createSignal<string>("");
+  const [directionFilter, setDirectionFilter] = createSignal<string>("");
+  const [eventTypeFilter, setEventTypeFilter] = createSignal<string>("");
   const [actionFilter, setActionFilter] = createSignal<string>("");
+  const [expandedId, setExpandedId] = createSignal<string | null>(null);
   const [connectorIdFilter, setConnectorIdFilter] = createSignal<string>("");
   const [transactionIdFilter, setTransactionIdFilter] = createSignal<string>("");
   const [page, setPage] = createSignal(0);
@@ -23,12 +26,15 @@ export function OCPPLogsView() {
     offset: page() * PAGE_SIZE,
     ...(search() ? { search: search() } : {}),
     ...(sourceFilter() ? { source: sourceFilter() } : {}),
+    ...(directionFilter() ? { direction: directionFilter() } : {}),
+    ...(eventTypeFilter() ? { event_type: eventTypeFilter() } : {}),
     ...(actionFilter() ? { action: actionFilter() } : {}),
     ...(connectorIdFilter() ? { connector_id: Number(connectorIdFilter()) } : {}),
     ...(transactionIdFilter() ? { transaction_id: Number(transactionIdFilter()) } : {}),
   });
 
   const [timeline, { refetch }] = createResource(queryParams, (params) => api.getTimeline(params));
+  const [timelineCount] = createResource(() => api.getTimelineCount().catch(() => ({ count: 0 })));
 
   const interval = setInterval(() => refetch(), 3000);
   onCleanup(() => clearInterval(interval));
@@ -58,8 +64,10 @@ export function OCPPLogsView() {
           OCPP Message Log
         </h2>
         <div class="flex items-center gap-2">
-          <Show when={timeline()}>
-            <span class="text-[10px] text-text-muted font-mono">{timeline()!.total} events</span>
+          <Show when={timelineCount()}>
+            <span class="text-[10px] text-text-muted font-mono">
+              {timeline()?.total ?? 0} shown · {timelineCount()!.count} total
+            </span>
           </Show>
           <button onClick={() => refetch()} class="p-2 rounded-lg border border-border-default hover:bg-white/5 transition-colors">
             <RefreshCw size={14} class={timeline.loading ? "animate-spin" : ""} />
@@ -92,6 +100,22 @@ export function OCPPLogsView() {
             <option value="ocpp_adapter">OCPP Adapter</option>
             <option value="csms">CSMS</option>
           </select>
+          <select
+            value={directionFilter()}
+            onChange={(e) => { setDirectionFilter(e.currentTarget.value); setPage(0); }}
+            class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
+          >
+            <option value="">All Directions</option>
+            <option value="inbound">Inbound</option>
+            <option value="outbound">Outbound</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Event type"
+            value={eventTypeFilter()}
+            onInput={(e) => { setEventTypeFilter(e.currentTarget.value); setPage(0); }}
+            class="w-32 bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none"
+          />
           <select
             value={actionFilter()}
             onChange={(e) => { setActionFilter(e.currentTarget.value); setPage(0); }}
@@ -150,21 +174,43 @@ export function OCPPLogsView() {
           }>
             {(event) => {
               const isSent = event.direction === "outbound";
+              const expanded = expandedId() === event.event_id;
               return (
-                <div class="grid grid-cols-[120px_60px_180px_1fr] gap-0 px-4 py-2.5 text-xs items-start hover:bg-white/[0.02] font-mono">
-                  <span class="text-text-muted">
-                    {new Date(event.timestamp).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 } as any)}
-                  </span>
-                  <span class={cn(
-                    "font-bold text-[10px] uppercase",
-                    isSent ? "text-accent-teal" : "text-blue-500"
-                  )}>
-                    {isSent ? "SENT" : "RECV"}
-                  </span>
-                  <span class="font-bold text-text-primary truncate pr-2">{event.action || event.event_type}</span>
-                  <span class="text-text-muted truncate" title={JSON.stringify(event.payload)}>
-                    {event.summary || JSON.stringify(event.payload)}
-                  </span>
+                <div class="font-mono">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : event.event_id)}
+                    class="w-full grid grid-cols-[120px_60px_180px_1fr] gap-0 px-4 py-2.5 text-xs items-start hover:bg-white/[0.02] text-left"
+                  >
+                    <span class="text-text-muted">
+                      {new Date(event.timestamp).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 } as any)}
+                    </span>
+                    <span class={cn(
+                      "font-bold text-[10px] uppercase",
+                      isSent ? "text-accent-teal" : "text-blue-500"
+                    )}>
+                      {isSent ? "SENT" : "RECV"}
+                    </span>
+                    <span class="font-bold text-text-primary truncate pr-2">{event.action || event.event_type}</span>
+                    <span class="text-text-muted truncate">
+                      {event.summary || JSON.stringify(event.payload)}
+                      <Show when={event.level || event.tags?.length}>
+                        <span class="ml-2 text-[9px] opacity-60">
+                          {event.level}{event.tags?.length ? ` · ${event.tags.join(",")}` : ""}
+                        </span>
+                      </Show>
+                    </span>
+                  </button>
+                  <Show when={expanded}>
+                    <div class="px-4 pb-3 text-[10px] text-text-muted space-y-1">
+                      <Show when={event.correlation_key}>
+                        <p>correlation: {event.correlation_key}</p>
+                      </Show>
+                      <pre class="max-h-40 overflow-auto bg-bg-main/80 p-2 rounded border border-border-default">
+                        {JSON.stringify(event.payload, null, 2)}
+                      </pre>
+                    </div>
+                  </Show>
                 </div>
               );
             }}

@@ -112,9 +112,19 @@ export default function MissionControl() {
                 <span class="font-medium">Simulator Bridge</span>
               </div>
               <p class="text-[10px] opacity-70">
-                {state.connectionStatus === "connected" ? "Real-time Link Active" : 
-                 state.connectionStatus === "connecting" ? "Connecting..." : "Searching for Simulator..."}
+                {state.connectionStatus === "connected"
+                  ? state.sidecarHealthy
+                    ? "Real-time link · sidecar healthy"
+                    : "WebSocket active"
+                  : state.connectionStatus === "connecting"
+                    ? "Connecting..."
+                    : "Searching for simulator (REST fallback)"}
               </p>
+              <Show when={state.snapshot?.uptime_seconds !== undefined}>
+                <p class="text-[10px] opacity-60 font-mono mt-1">
+                  Engine uptime: {Math.floor(state.snapshot!.uptime_seconds! / 60)}m
+                </p>
+              </Show>
             </div>
 
             <div class={cn(
@@ -123,12 +133,26 @@ export default function MissionControl() {
             )}>
               <div class="flex items-center gap-2 mb-1">
                 <Wifi size={14} class={state.snapshot?.ocpp_connected ? "text-accent-teal" : "text-red-500"} />
-                <span class="font-medium">OCPP Central System</span>
+                <span class="font-medium">OCPP CSMS</span>
               </div>
               <p class="text-[10px] opacity-70">
-                {state.snapshot?.ocpp_connected ? "Connected to Backend" : "Disconnected from Backend"}
+                {state.snapshot?.ocpp_connected ? "Connected to central system" : "Disconnected from CSMS"}
               </p>
+              <p class="text-[9px] opacity-50 mt-1">Link detail: Settings → OCPP Link Health</p>
             </div>
+
+            <Show when={(state.snapshot?.pending_remote_starts?.length ?? 0) > 0}>
+              <div class="p-4 glass-card border-none text-xs bg-blue-500/5 text-blue-200/90">
+                <p class="font-medium mb-1">Pending remote starts</p>
+                <For each={state.snapshot!.pending_remote_starts!}>
+                  {(pending) => (
+                    <p class="text-[10px] font-mono opacity-80">
+                      C{pending.connector_id} · {pending.id_tag} · until {new Date(pending.expiry).toLocaleTimeString()}
+                    </p>
+                  )}
+                </For>
+              </div>
+            </Show>
         </div>
       </aside>
 

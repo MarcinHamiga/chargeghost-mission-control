@@ -54,7 +54,11 @@ export interface Config {
   charge_point_model: string;
   charge_point_vendor: string;
   connectors?: ConfigConnector[];
+  security_profile?: number;
   skip_tls_verify: boolean;
+  tls_ca_path?: string | null;
+  tls_client_cert_path?: string | null;
+  tls_client_key_path?: string | null;
   log_mode: ConfigLogMode;
   multi_evse_mode: boolean;
   ev_battery_capacity: number;
@@ -80,17 +84,37 @@ export interface EnergyMeter {
   is_charging: boolean;
 }
 
+export interface PendingRemoteStart {
+  connector_id: number;
+  transaction_id: number;
+  id_tag: string;
+  expiry: string;
+}
+
 export interface StatusSnapshot {
   ocpp_connected: boolean;
   uptime_seconds?: number;
   connectors: Connector[];
   active_sessions: Session[];
   energy_meters: Record<string, EnergyMeter>;
+  reservations?: Reservation[];
+  pending_remote_starts?: PendingRemoteStart[];
 }
 
+export type ConfigUpdateAction = "no-op" | "applied" | "restart_required";
+
 export interface ConfigUpdateResponse extends StandardResponse {
-  action: 'no-op' | 'bridge_restart_required' | 'runtime_rebuild_required' | 'rejected';
+  action: ConfigUpdateAction;
   changed_fields: string[];
+}
+
+export interface SessionStartOptions {
+  id_tag?: string;
+  timeout_seconds?: number;
+}
+
+export interface StopAllSessionsDetails {
+  stopped_count?: number;
 }
 
 export interface StoppedSession {
@@ -119,18 +143,59 @@ export interface ChargingSchedulePeriod {
 export interface ChargingProfile {
   profile_id: number;
   connector_id: number;
-  purpose: 'ChargePointMaxProfile' | 'TxDefaultProfile' | 'TxProfile';
+  purpose: "ChargePointMaxProfile" | "TxDefaultProfile" | "TxProfile";
   stack_level: number;
-  charging_profile_kind: 'Absolute' | 'Recurring' | 'Relative';
+  charging_profile_kind: "Absolute" | "Recurring" | "Relative";
+  charging_rate_unit?: "W" | "A";
   schedule_period: ChargingSchedulePeriod[];
 }
 
+export type LocalAuthStatus =
+  | "Accepted"
+  | "Blocked"
+  | "Expired"
+  | "Invalid"
+  | "ConcurrentTx";
+
 export interface LocalAuthEntry {
   id_tag: string;
-  status: 'Accepted' | 'Blocked' | 'Expired' | 'Invalid';
+  authorization_status: LocalAuthStatus;
   expiry_date: string | null;
-  parent_id_tag: string | null;
+  is_expired: boolean;
+  parent_id_tag?: string | null;
 }
+
+export interface LocalAuthPutEntry {
+  IDTag: string;
+  Status: string;
+  Expiry?: string;
+  ParentIDTag?: string;
+  Delete?: boolean;
+}
+
+export interface OcppStatus {
+  version: string;
+  connected: boolean;
+  connectedAt?: string;
+  disconnectedAt?: string;
+  lastMessageAt?: string;
+  lastError?: string;
+  lastErrorAt?: string;
+  reconnectCount: number;
+  upSince: string;
+  csmsUrl: string;
+  ocppId: string;
+  lastHeartbeatAt?: string;
+  lastHeartbeatRttMs?: number;
+  heartbeatSuccesses: number;
+  heartbeatFailures: number;
+  queueDepth?: number;
+  queueExhausted?: number;
+  queueDropped?: number;
+  drainInProgress?: boolean;
+}
+
+export type ConnectorAvailability = "Operative" | "Inoperative";
 
 export interface LocalAuthList {
   version: number;

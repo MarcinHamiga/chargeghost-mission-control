@@ -1,17 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  runtimeChargingProfileGetPayload,
+  runtimeCompositeSchedulePayload,
   runtimeConfigPayload,
+  runtimeConfigPatchResponse,
   runtimeDiagnosticsPayload,
   runtimeFirmwareArtifactPayload,
   runtimeFirmwarePayload,
   runtimeLastStoppedPayload,
+  runtimeLocalAuthListPayload,
   runtimeOcppKeyPayload,
+  runtimeOcppStatusPayload,
+  runtimeStatusPayload,
 } from "./api-contract-fixtures";
 import {
+  normalizeChargingProfile,
+  normalizeCompositeSchedule,
   normalizeConfig,
+  normalizeConfigUpdateResponse,
   normalizeDiagnosticsStatus,
   normalizeFirmwareStatus,
+  normalizeLocalAuthList,
   normalizeOcppConfigKeys,
+  normalizeOcppStatus,
+  normalizeStatusSnapshot,
   normalizeStoppedSession,
 } from "../api-normalizers";
 
@@ -52,6 +64,50 @@ describe("api normalizers", () => {
 
   it("normalizes diagnostics status from PascalCase fields", () => {
     expect(normalizeDiagnosticsStatus(runtimeDiagnosticsPayload).status).toBe("Idle");
+  });
+
+  it("normalizes status snapshot with pending remote starts", () => {
+    const result = normalizeStatusSnapshot(runtimeStatusPayload);
+    expect(result.pending_remote_starts).toHaveLength(1);
+    expect(result.pending_remote_starts![0].id_tag).toBe("RFID002");
+  });
+
+  it("normalizes local auth list entries", () => {
+    const result = normalizeLocalAuthList(runtimeLocalAuthListPayload);
+    expect(result.entries[0]).toMatchObject({
+      authorization_status: "Accepted",
+      is_expired: false,
+    });
+  });
+
+  it("normalizes charging profiles from PascalCase", () => {
+    expect(normalizeChargingProfile(runtimeChargingProfileGetPayload)).toMatchObject({
+      profile_id: 10,
+      schedule_period: [{ start_period: 0, limit: 7400 }],
+      charging_rate_unit: "W",
+    });
+  });
+
+  it("normalizes composite schedule periods", () => {
+    expect(normalizeCompositeSchedule(runtimeCompositeSchedulePayload).periods).toEqual([
+      { start_period: 0, limit: 7400 },
+      { start_period: 3600, limit: 11000 },
+    ]);
+  });
+
+  it("normalizes config PATCH action values", () => {
+    expect(normalizeConfigUpdateResponse(runtimeConfigPatchResponse).action).toBe("restart_required");
+    expect(
+      normalizeConfigUpdateResponse({ ...runtimeConfigPatchResponse, action: "bridge_restart_required" })
+        .action,
+    ).toBe("restart_required");
+  });
+
+  it("normalizes OCPP status payloads", () => {
+    expect(normalizeOcppStatus(runtimeOcppStatusPayload)).toMatchObject({
+      lastHeartbeatRttMs: 84,
+      heartbeatSuccesses: 17,
+    });
   });
 
   it("preserves OCPP key type metadata", () => {

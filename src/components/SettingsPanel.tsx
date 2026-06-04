@@ -1,6 +1,8 @@
-import { createSignal, createResource, For, Show } from "solid-js";
-import { api } from "../lib/api";
+import { createSignal, createResource, createEffect, For, Show } from "solid-js";
+import { api, APIError } from "../lib/api";
 import type { Config } from "../lib/types";
+import { state } from "../store/simulator";
+import { bridgeUnavailableMessage } from "../lib/http";
 import { addToast } from "../store/toast";
 import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
 import { clsx } from "clsx";
@@ -22,6 +24,17 @@ export function SettingsPanel() {
 
   // Local Auth List
   const [localAuth, { refetch: refetchLocalAuth }] = createResource(() => api.getLocalAuthList());
+  const [ocppStatus, { refetch: refetchOcppStatus }] = createResource(() =>
+    api.getOcppStatus().catch((e) => {
+      if (e instanceof APIError && e.status === 503) return null;
+      throw e;
+    }),
+  );
+
+  createEffect(() => {
+    state.wsInvalidation.ocppKeys;
+    refetchKeys();
+  });
   const [localAuthExpanded, setLocalAuthExpanded] = createSignal(false);
   const [addingAuthEntry, setAddingAuthEntry] = createSignal(false);
   const [newAuthIdTag, setNewAuthIdTag] = createSignal("");
@@ -36,9 +49,9 @@ export function SettingsPanel() {
         list_version: current.version + 1,
         update_type: "Differential",
         entries: [{
-          id_tag: newAuthIdTag(),
-          status: newAuthStatus(),
-          expiry_date: newAuthExpiry() ? new Date(newAuthExpiry()).toISOString() : undefined,
+          IDTag: newAuthIdTag(),
+          Status: newAuthStatus(),
+          ...(newAuthExpiry() ? { Expiry: new Date(newAuthExpiry()).toISOString() } : {}),
         }],
       });
       setAddingAuthEntry(false);
@@ -88,14 +101,19 @@ export function SettingsPanel() {
       const changes = dirty();
       if (Object.keys(changes).length > 0) {
         const result = await api.updateConfig(changes);
-        if (result.action === "rejected") {
-          setSaveMsg({ type: "error", text: `Rejected: ${result.message}` });
-          return;
-        }
-        if (result.action === "bridge_restart_required") {
-          setSaveMsg({ type: "success", text: "Saved. Bridge restart required for changes to take effect." });
+        const immediateFields = ["ev_battery_capacity", "rfid_tag"];
+        const changedImmediate = result.changed_fields.some((f) => immediateFields.includes(f));
+        if (result.action === "restart_required") {
+          setSaveMsg({
+            type: "success",
+            text: changedImmediate
+              ? "Saved. Immediate fields applied; restart required for connection/TLS/OCPP version changes."
+              : "Saved. Restart the process to apply startup-only configuration changes.",
+          });
+        } else if (result.action === "applied") {
+          setSaveMsg({ type: "success", text: result.message || "Configuration applied immediately." });
         } else {
-          setSaveMsg({ type: "success", text: result.message || "Configuration updated." });
+          setSaveMsg({ type: "success", text: result.message || "No configuration changes." });
         }
       }
       await api.saveConfig();
@@ -131,10 +149,15 @@ export function SettingsPanel() {
     { key: "connection_url", label: "OCPP Connection URL", type: "text", icon: Server },
     { key: "ocpp_id", label: "Charge Point ID", type: "text", icon: Key },
     { key: "ocpp_password", label: "OCPP Password", type: "password", icon: Shield },
+    { key: "security_profile", label: "Security Profile (0–2)", type: "number" },
     { key: "charge_point_model", label: "Charge Point Model", type: "text" },
     { key: "charge_point_vendor", label: "Charge Point Vendor", type: "text" },
-    { key: "rfid_tag", label: "Default RFID Tag", type: "text" },
-    { key: "ev_battery_capacity", label: "EV Battery Capacity (Wh)", type: "number" },
+    { key: "rfid_tag", label: "Default RFID Tag (session / start-charging)", type: "text" },
+    { key: "ev_battery_capacity", label: "EV Battery Capacity (kWh)", type: "number" },
+    { key: "ocpp_version", label: "OCPP Version", type: "select", options: ["1.6", "2.0.1"] },
+    { key: "tls_ca_path", label: "TLS CA Path", type: "text" },
+    { key: "tls_client_cert_path", label: "TLS Client Cert Path", type: "text" },
+    { key: "tls_client_key_path", label: "TLS Client Key Path", type: "text" },
     { key: "log_mode", label: "Log Level", type: "select", options: ["debug", "info", "warn", "error"] },
     { key: "skip_tls_verify", label: "Skip TLS Verification", type: "toggle" },
     { key: "multi_evse_mode", label: "Multi-EVSE Mode", type: "toggle" },
@@ -227,6 +250,59 @@ export function SettingsPanel() {
               )}
             </For>
           </div>
+        </div>
+
+        <Show when={config()?.connectors && config()!.connectors!.length > 0}>
+          <div class="glass-card p-6">
+            <h3 class="text-sm font-bold mb-4 uppercase tracking-widest text-text-secondary">
+              Startup Connectors (read-only)
+            </h3>
+            <div class="space-y-2">
+              <For each={config()!.connectors}>
+                {(c, i) => (
+                  <div class="text-xs font-mono text-text-muted">
+                    #{i() + 1}: {c.voltage} V · {c.current} A · {c.phase}-phase
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
+
+        <div class="glass-card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
+              <Server size={14} />
+              OCPP Link Health
+            </h3>
+            <button
+              onClick={() => refetchOcppStatus()}
+              class="text-[10px] text-accent-teal hover:underline"
+            >
+              Refresh
+            </button>
+          </div>
+          <Show
+            when={ocppStatus()}
+            fallback={
+              <p class="text-xs text-text-muted">
+                {bridgeUnavailableMessage()} Use snapshot <span class="font-mono">ocpp_connected</span> for coarse state.
+              </p>
+            }
+          >
+            {(status) => (
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                <div><span class="text-text-muted">Version</span><div class="font-mono">{status().version}</div></div>
+                <div><span class="text-text-muted">Connected</span><div>{status().connected ? "Yes" : "No"}</div></div>
+                <div><span class="text-text-muted">RTT</span><div class="font-mono">{status().lastHeartbeatRttMs ?? "—"} ms</div></div>
+                <div><span class="text-text-muted">Reconnects</span><div>{status().reconnectCount}</div></div>
+                <div><span class="text-text-muted">Heartbeats</span><div>{status().heartbeatSuccesses} ok / {status().heartbeatFailures} fail</div></div>
+                <Show when={status().queueDepth !== undefined}>
+                  <div><span class="text-text-muted">Queue depth</span><div>{status().queueDepth}</div></div>
+                </Show>
+              </div>
+            )}
+          </Show>
         </div>
 
         {/* OCPP Configuration Keys */}
@@ -384,6 +460,7 @@ export function SettingsPanel() {
                         <option value="Blocked">Blocked</option>
                         <option value="Expired">Expired</option>
                         <option value="Invalid">Invalid</option>
+                        <option value="ConcurrentTx">ConcurrentTx</option>
                       </select>
                     </div>
                     <div class="space-y-1">
@@ -407,9 +484,10 @@ export function SettingsPanel() {
 
               {/* Entries table */}
               <div class="border border-border-default rounded-lg overflow-hidden">
-                <div class="grid grid-cols-[1fr_100px_1fr_60px] gap-0 text-[10px] font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+                <div class="grid grid-cols-[1fr_100px_80px_1fr_60px] gap-0 text-[10px] font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
                   <span>ID Tag</span>
                   <span>Status</span>
+                  <span>Expired</span>
                   <span>Expiry</span>
                   <span class="text-center">Actions</span>
                 </div>
@@ -421,16 +499,22 @@ export function SettingsPanel() {
                   }>
                     <For each={localAuth()?.entries}>
                       {(entry) => (
-                        <div class="grid grid-cols-[1fr_100px_1fr_60px] gap-0 px-4 py-2 text-xs items-center hover:bg-white/[0.02]">
+                        <div class="grid grid-cols-[1fr_100px_80px_1fr_60px] gap-0 px-4 py-2 text-xs items-center hover:bg-white/[0.02]">
                           <span class="font-mono text-text-secondary">{entry.id_tag}</span>
                           <span class={cn(
                             "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase w-fit",
-                            entry.status === "Accepted" ? "bg-green-500/10 text-green-400" :
-                            entry.status === "Blocked" ? "bg-red-500/10 text-red-400" :
-                            entry.status === "Expired" ? "bg-orange-500/10 text-orange-400" :
+                            entry.authorization_status === "Accepted" ? "bg-green-500/10 text-green-400" :
+                            entry.authorization_status === "Blocked" ? "bg-red-500/10 text-red-400" :
+                            entry.authorization_status === "Expired" ? "bg-orange-500/10 text-orange-400" :
                             "bg-yellow-500/10 text-yellow-400"
                           )}>
-                            {entry.status}
+                            {entry.authorization_status}
+                          </span>
+                          <span class={cn(
+                            "text-[9px] font-bold uppercase",
+                            entry.is_expired ? "text-orange-400" : "text-text-muted"
+                          )}>
+                            {entry.is_expired ? "Yes" : "No"}
                           </span>
                           <span class="text-text-muted font-mono text-[10px]">
                             {entry.expiry_date ? new Date(entry.expiry_date).toLocaleString() : "—"}

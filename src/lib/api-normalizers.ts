@@ -1,15 +1,26 @@
 import type {
+  ChargingProfile,
+  ChargingSchedulePeriod,
   Config,
   ConfigConnector,
   ConfigLogMode,
+  ConfigUpdateResponse,
   DiagnosticsStatus,
   DiagnosticsStatusValue,
   FirmwareStatus,
   FirmwareStatusValue,
+  LocalAuthEntry,
+  LocalAuthList,
+  LocalAuthStatus,
   OcppConfigKey,
+  OcppStatus,
   OcppVersion,
+  PendingRemoteStart,
+  Reservation,
+  StatusSnapshot,
   StoppedSession,
 } from "./types";
+import { normalizeConfigUpdateAction } from "./http";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -95,7 +106,11 @@ export function normalizeConfig(payload: unknown): Config {
     charge_point_model: readString(p.charge_point_model),
     charge_point_vendor: readString(p.charge_point_vendor),
     connectors: Array.isArray(p.connectors) ? p.connectors.map(normalizeConnector) : undefined,
+    security_profile: optionalNumber(p.security_profile),
     skip_tls_verify: readBoolean(p.skip_tls_verify),
+    tls_ca_path: optionalString(p.tls_ca_path),
+    tls_client_cert_path: optionalString(p.tls_client_cert_path),
+    tls_client_key_path: optionalString(p.tls_client_key_path),
     log_mode: normalizeLogMode(p.log_mode),
     multi_evse_mode: readBoolean(p.multi_evse_mode),
     ev_battery_capacity: readNumber(p.ev_battery_capacity),
@@ -104,6 +119,167 @@ export function normalizeConfig(payload: unknown): Config {
     rfid_tag: optionalString(p.rfid_tag),
     ignored_version: typeof p.ignored_version === "string" ? p.ignored_version : undefined,
     connector_type: typeof p.connector_type === "string" ? p.connector_type : undefined,
+  };
+}
+
+export function normalizeConfigUpdateResponse(payload: unknown): ConfigUpdateResponse {
+  const p = asRecord(payload);
+  return {
+    success: readBoolean(p.success, true),
+    message: readString(p.message),
+    details: p.details,
+    action: normalizeConfigUpdateAction(p.action),
+    changed_fields: Array.isArray(p.changed_fields)
+      ? p.changed_fields.filter((f): f is string => typeof f === "string")
+      : [],
+  };
+}
+
+const LOCAL_AUTH_STATUSES: LocalAuthStatus[] = [
+  "Accepted",
+  "Blocked",
+  "Expired",
+  "Invalid",
+  "ConcurrentTx",
+];
+
+function normalizeLocalAuthStatus(value: unknown): LocalAuthStatus {
+  if (typeof value !== "string") return "Invalid";
+  const match = LOCAL_AUTH_STATUSES.find((s) => s.toLowerCase() === value.toLowerCase());
+  return match ?? "Invalid";
+}
+
+export function normalizeLocalAuthEntry(payload: unknown): LocalAuthEntry {
+  const p = asRecord(payload);
+  const idTag = readString(p.id_tag ?? p.IDTag);
+  const authorizationStatus = normalizeLocalAuthStatus(
+    p.authorization_status ?? p.Status ?? p.status,
+  );
+  const expiry = optionalString(p.expiry_date ?? p.Expiry);
+  return {
+    id_tag: idTag,
+    authorization_status: authorizationStatus,
+    expiry_date: expiry,
+    is_expired: readBoolean(p.is_expired, false),
+    parent_id_tag: optionalString(p.parent_id_tag ?? p.ParentIDTag),
+  };
+}
+
+export function normalizeLocalAuthList(payload: unknown): LocalAuthList {
+  const p = asRecord(payload);
+  return {
+    version: readNumber(p.version),
+    entry_count: readNumber(p.entry_count),
+    max_entries: readNumber(p.max_entries),
+    enabled: readBoolean(p.enabled),
+    entries: Array.isArray(p.entries) ? p.entries.map(normalizeLocalAuthEntry) : [],
+  };
+}
+
+function normalizeSchedulePeriod(payload: unknown): ChargingSchedulePeriod {
+  const p = asRecord(payload);
+  const period: ChargingSchedulePeriod = {
+    start_period: readNumber(p.start_period ?? p.StartPeriod),
+    limit: readNumber(p.limit ?? p.Limit),
+  };
+  const phases = p.number_phases ?? p.NumberPhases;
+  if (typeof phases === "number") period.number_phases = phases;
+  return period;
+}
+
+export function normalizeChargingProfile(payload: unknown): ChargingProfile {
+  const p = asRecord(payload);
+  const schedule = asRecord(p.Schedule ?? p.schedule);
+  const periodsRaw = schedule.Periods ?? schedule.periods ?? p.schedule_period;
+  const periods = Array.isArray(periodsRaw) ? periodsRaw.map(normalizeSchedulePeriod) : [];
+  const unit = schedule.ChargingRateUnit ?? schedule.charging_rate_unit;
+  return {
+    profile_id: readNumber(p.profile_id ?? p.ProfileID),
+    connector_id: readNumber(p.connector_id ?? p.ConnectorID),
+    purpose: readString(p.purpose ?? p.Purpose, "TxDefaultProfile") as ChargingProfile["purpose"],
+    stack_level: readNumber(p.stack_level ?? p.StackLevel),
+    charging_profile_kind: readString(p.charging_profile_kind ?? p.Kind, "Absolute") as ChargingProfile["charging_profile_kind"],
+    charging_rate_unit:
+      unit === "A" || unit === "W" ? unit : undefined,
+    schedule_period: periods,
+  };
+}
+
+export function normalizeChargingProfiles(payload: unknown): ChargingProfile[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map(normalizeChargingProfile);
+}
+
+export function normalizeCompositeSchedule(payload: unknown): { periods: ChargingSchedulePeriod[] } {
+  const p = asRecord(payload);
+  const periodsRaw = p.periods ?? p.Periods;
+  return {
+    periods: Array.isArray(periodsRaw) ? periodsRaw.map(normalizeSchedulePeriod) : [],
+  };
+}
+
+function normalizeReservation(payload: unknown): Reservation {
+  const p = asRecord(payload);
+  return {
+    reservation_id: readNumber(p.reservation_id),
+    connector_id: readNumber(p.connector_id),
+    id_tag: readString(p.id_tag),
+    expiry_date: readString(p.expiry_date),
+    parent_id_tag: optionalString(p.parent_id_tag),
+  };
+}
+
+function normalizePendingRemoteStart(payload: unknown): PendingRemoteStart {
+  const p = asRecord(payload);
+  return {
+    connector_id: readNumber(p.connector_id),
+    transaction_id: readNumber(p.transaction_id),
+    id_tag: readString(p.id_tag),
+    expiry: readString(p.expiry),
+  };
+}
+
+export function normalizeStatusSnapshot(payload: unknown): StatusSnapshot {
+  const p = asRecord(payload);
+  return {
+    ocpp_connected: readBoolean(p.ocpp_connected),
+    uptime_seconds: optionalNumber(p.uptime_seconds),
+    connectors: Array.isArray(p.connectors) ? (p.connectors as StatusSnapshot["connectors"]) : [],
+    active_sessions: Array.isArray(p.active_sessions)
+      ? (p.active_sessions as StatusSnapshot["active_sessions"])
+      : [],
+    energy_meters: (typeof p.energy_meters === "object" && p.energy_meters !== null
+      ? p.energy_meters
+      : {}) as StatusSnapshot["energy_meters"],
+    reservations: Array.isArray(p.reservations) ? p.reservations.map(normalizeReservation) : undefined,
+    pending_remote_starts: Array.isArray(p.pending_remote_starts)
+      ? p.pending_remote_starts.map(normalizePendingRemoteStart)
+      : undefined,
+  };
+}
+
+export function normalizeOcppStatus(payload: unknown): OcppStatus {
+  const p = asRecord(payload);
+  return {
+    version: readString(p.version),
+    connected: readBoolean(p.connected),
+    connectedAt: optionalString(p.connectedAt) ?? undefined,
+    disconnectedAt: optionalString(p.disconnectedAt) ?? undefined,
+    lastMessageAt: optionalString(p.lastMessageAt) ?? undefined,
+    lastError: optionalString(p.lastError) ?? undefined,
+    lastErrorAt: optionalString(p.lastErrorAt) ?? undefined,
+    reconnectCount: readNumber(p.reconnectCount),
+    upSince: readString(p.upSince),
+    csmsUrl: readString(p.csmsUrl),
+    ocppId: readString(p.ocppId),
+    lastHeartbeatAt: optionalString(p.lastHeartbeatAt) ?? undefined,
+    lastHeartbeatRttMs: optionalNumber(p.lastHeartbeatRttMs),
+    heartbeatSuccesses: readNumber(p.heartbeatSuccesses),
+    heartbeatFailures: readNumber(p.heartbeatFailures),
+    queueDepth: optionalNumber(p.queueDepth),
+    queueExhausted: optionalNumber(p.queueExhausted),
+    queueDropped: optionalNumber(p.queueDropped),
+    drainInProgress: typeof p.drainInProgress === "boolean" ? p.drainInProgress : undefined,
   };
 }
 
