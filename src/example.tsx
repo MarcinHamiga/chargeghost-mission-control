@@ -25,6 +25,8 @@ import { OCPPLogsView } from "./components/OCPPLogsView";
 import { SimulatorView } from "./components/SimulatorView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useWebSocket } from "./hooks/useWebSocket";
+import { useTelemetrySampler } from "./hooks/useTelemetrySampler";
+import { getConnectorTelemetry, getRevision } from "./store/telemetry";
 import { ToastContainer } from "./components/ToastContainer";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { addToast } from "./store/toast";
@@ -33,6 +35,7 @@ const SIDEBAR_COLLAPSED_KEY = "cg-sidebar-collapsed";
 
 export default function MissionControl() {
   useWebSocket();
+  useTelemetrySampler();
   const [activeTab, setActiveTab] = createSignal("dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
   const [configInfo] = createResource(() => api.getConfig().catch(() => null));
@@ -66,10 +69,8 @@ export default function MissionControl() {
   const energyMeter = () => state.snapshot?.energy_meters[state.selectedConnectorId.toString()];
 
   const actualPowerW = () => {
-    const meter = energyMeter();
-    const conn = currentConnector();
-    if (!meter || !conn) return 0;
-    return meter.is_charging ? conn.voltage * conn.current : 0;
+    getRevision();
+    return getConnectorTelemetry(state.selectedConnectorId).currentValueW;
   };
 
   const telemetryStats = () => [
