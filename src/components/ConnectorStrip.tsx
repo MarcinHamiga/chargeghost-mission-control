@@ -1,12 +1,8 @@
 import { For, Show } from "solid-js";
 import { Zap } from "lucide-solid";
 import { state, setState } from "../store/simulator";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
+import { BRAND_ACCENT_RGB } from "../lib/brand";
 
 export function ConnectorStrip() {
   const connectors = () => [...(state.snapshot?.connectors || [])].sort((a, b) => a.id - b.id);
@@ -37,10 +33,14 @@ export function ConnectorStrip() {
               <div class="flex items-center gap-2">
                 <span class="font-bold text-xs uppercase tracking-tighter">Connector {connector.id}</span>
                 <Show when={connector.is_plugged_in}>
-                    <div class="w-1.5 h-1.5 rounded-full bg-accent-teal shadow-[0_0_8px_rgba(20,184,166,0.6)]" title="Plugged In"></div>
+                    <div
+                      class="w-1.5 h-1.5 rounded-full bg-accent-teal"
+                      style={{ "box-shadow": `0 0 8px rgba(${BRAND_ACCENT_RGB}, 0.6)` }}
+                      title="Plugged In"
+                    />
                 </Show>
               </div>
-              <p class="text-[10px] text-text-secondary leading-none">
+              <p class="text-xs text-text-secondary leading-none">
                 {connector.status}
               </p>
             </div>

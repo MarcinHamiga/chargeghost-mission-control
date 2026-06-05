@@ -1,12 +1,7 @@
 import { For } from "solid-js";
 import { toasts, dismissToast } from "../store/toast";
 import { X } from "lucide-solid";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
 
 export function ToastContainer() {
   return (

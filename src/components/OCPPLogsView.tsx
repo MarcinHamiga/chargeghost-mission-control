@@ -2,12 +2,10 @@ import { createSignal, createResource, For, Show, onCleanup } from "solid-js";
 import { api } from "../lib/api";
 import { addToast } from "../store/toast";
 import { Terminal, Search, Trash2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-solid";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
+import { requestConfirm } from "../store/confirm";
+import { Select } from "./Select";
+import { OCPP_ACTION_OPTIONS, OCPP_DIRECTION_OPTIONS, OCPP_SOURCE_OPTIONS } from "../lib/select-options";
 
 export function OCPPLogsView() {
   const [search, setSearch] = createSignal("");
@@ -45,7 +43,7 @@ export function OCPPLogsView() {
   };
 
   const handleClear = async () => {
-    if (!confirm("Clear all timeline events?")) return;
+    if (!(await requestConfirm("Clear all timeline events?"))) return;
     try {
       await api.clearTimeline();
       setPage(0);
@@ -65,7 +63,7 @@ export function OCPPLogsView() {
         </h2>
         <div class="flex items-center gap-2">
           <Show when={timelineCount()}>
-            <span class="text-[10px] text-text-muted font-mono">
+            <span class="text-xs text-text-muted font-mono">
               {timeline()?.total ?? 0} shown · {timelineCount()!.count} total
             </span>
           </Show>
@@ -91,24 +89,20 @@ export function OCPPLogsView() {
               class="w-full bg-bg-main border border-border-default rounded-lg pl-9 pr-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none transition-colors"
             />
           </div>
-          <select
+          <Select
             value={sourceFilter()}
-            onChange={(e) => { setSourceFilter(e.currentTarget.value); setPage(0); }}
-            class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
-          >
-            <option value="">All Sources</option>
-            <option value="ocpp_adapter">OCPP Adapter</option>
-            <option value="csms">CSMS</option>
-          </select>
-          <select
+            options={OCPP_SOURCE_OPTIONS}
+            onChange={(value) => { setSourceFilter(value); setPage(0); }}
+            aria-label="Filter by source"
+            class="min-w-[9rem]"
+          />
+          <Select
             value={directionFilter()}
-            onChange={(e) => { setDirectionFilter(e.currentTarget.value); setPage(0); }}
-            class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
-          >
-            <option value="">All Directions</option>
-            <option value="inbound">Inbound</option>
-            <option value="outbound">Outbound</option>
-          </select>
+            options={OCPP_DIRECTION_OPTIONS}
+            onChange={(value) => { setDirectionFilter(value); setPage(0); }}
+            aria-label="Filter by direction"
+            class="min-w-[9rem]"
+          />
           <input
             type="text"
             placeholder="Event type"
@@ -116,30 +110,14 @@ export function OCPPLogsView() {
             onInput={(e) => { setEventTypeFilter(e.currentTarget.value); setPage(0); }}
             class="w-32 bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none"
           />
-          <select
+          <Select
             value={actionFilter()}
-            onChange={(e) => { setActionFilter(e.currentTarget.value); setPage(0); }}
-            class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
-          >
-            <option value="">All Actions</option>
-            <option value="BootNotification">BootNotification</option>
-            <option value="Heartbeat">Heartbeat</option>
-            <option value="StatusNotification">StatusNotification</option>
-            <option value="Authorize">Authorize</option>
-            <option value="StartTransaction">StartTransaction</option>
-            <option value="StopTransaction">StopTransaction</option>
-            <option value="MeterValues">MeterValues</option>
-            <option value="RemoteStartTransaction">RemoteStartTransaction</option>
-            <option value="RemoteStopTransaction">RemoteStopTransaction</option>
-            <option value="ChangeConfiguration">ChangeConfiguration</option>
-            <option value="GetConfiguration">GetConfiguration</option>
-            <option value="Reset">Reset</option>
-            <option value="SetChargingProfile">SetChargingProfile</option>
-            <option value="ClearChargingProfile">ClearChargingProfile</option>
-            <option value="TriggerMessage">TriggerMessage</option>
-            <option value="FirmwareStatusNotification">FirmwareStatusNotification</option>
-            <option value="DiagnosticsStatusNotification">DiagnosticsStatusNotification</option>
-          </select>
+            options={OCPP_ACTION_OPTIONS}
+            onChange={(value) => { setActionFilter(value); setPage(0); }}
+            aria-label="Filter by OCPP action"
+            class="min-w-[10rem]"
+            menuClass="min-w-[14rem]"
+          />
           <input
             type="number"
             placeholder="Connector ID"
@@ -159,14 +137,14 @@ export function OCPPLogsView() {
 
       {/* Event List */}
       <div class="glass-card overflow-hidden">
-        <div class="grid grid-cols-[120px_60px_180px_1fr] gap-0 text-[10px] font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+        <div class="grid grid-cols-[minmax(5rem,7.5rem)_3.5rem_minmax(6rem,11rem)_1fr] gap-0 text-xs font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
           <span>Timestamp</span>
           <span>Dir</span>
           <span>Action</span>
           <span>Details</span>
         </div>
 
-        <div class="divide-y divide-border-default max-h-[calc(100vh-340px)] overflow-y-auto custom-scrollbar">
+        <div class="divide-y divide-border-default max-h-[min(70vh,calc(100vh-16rem))] overflow-y-auto custom-scrollbar">
           <For each={timeline()?.events} fallback={
             <Show when={!timeline.loading}>
               <div class="px-4 py-12 text-center text-text-muted text-xs italic">No events match your filters</div>
@@ -180,13 +158,13 @@ export function OCPPLogsView() {
                   <button
                     type="button"
                     onClick={() => setExpandedId(expanded ? null : event.event_id)}
-                    class="w-full grid grid-cols-[120px_60px_180px_1fr] gap-0 px-4 py-2.5 text-xs items-start hover:bg-white/[0.02] text-left"
+                    class="w-full grid grid-cols-[minmax(5rem,7.5rem)_3.5rem_minmax(6rem,11rem)_1fr] gap-0 px-4 py-2.5 text-xs items-start hover:bg-white/[0.02] text-left"
                   >
                     <span class="text-text-muted">
                       {new Date(event.timestamp).toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 } as any)}
                     </span>
                     <span class={cn(
-                      "font-bold text-[10px] uppercase",
+                      "font-bold text-xs uppercase",
                       isSent ? "text-accent-teal" : "text-blue-500"
                     )}>
                       {isSent ? "SENT" : "RECV"}
@@ -195,14 +173,14 @@ export function OCPPLogsView() {
                     <span class="text-text-muted truncate">
                       {event.summary || JSON.stringify(event.payload)}
                       <Show when={event.level || event.tags?.length}>
-                        <span class="ml-2 text-[9px] opacity-60">
+                        <span class="ml-2 text-xs opacity-60">
                           {event.level}{event.tags?.length ? ` · ${event.tags.join(",")}` : ""}
                         </span>
                       </Show>
                     </span>
                   </button>
                   <Show when={expanded}>
-                    <div class="px-4 pb-3 text-[10px] text-text-muted space-y-1">
+                    <div class="px-4 pb-3 text-xs text-text-muted space-y-1">
                       <Show when={event.correlation_key}>
                         <p>correlation: {event.correlation_key}</p>
                       </Show>

@@ -7,14 +7,17 @@ import {
   User, Calendar, BarChart3, Layers, Pencil, Check, X,
   Upload, Download, XCircle, Eye
 } from "lucide-solid";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "../lib/cn";
+import { requestConfirm } from "../store/confirm";
 import { ConnectorStrip } from "./ConnectorStrip";
 import { ActionPanel } from "./ActionPanel";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { Select } from "./Select";
+import {
+  PHASE_OPTIONS,
+  PROFILE_KIND_OPTIONS,
+  PROFILE_PURPOSE_OPTIONS,
+  PROFILE_RATE_UNIT_OPTIONS,
+} from "../lib/select-options";
 
 function defaultChargingProfileLimit(unit: "W" | "A"): number {
   return unit === "A" ? 32 : 7400;
@@ -105,7 +108,7 @@ export function SimulatorView() {
   };
 
   const handleDeleteConnector = async (id: number) => {
-    if (!confirm(`Delete connector ${id}?`)) return;
+    if (!(await requestConfirm(`Delete connector ${id}?`))) return;
     try {
       await api.deleteConnector(id);
       await refreshState();
@@ -330,7 +333,7 @@ export function SimulatorView() {
         <div class="glass-card p-4">
           <div class="flex items-end gap-4">
             <div class="space-y-1">
-              <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Voltage (V) <span class="font-normal text-text-muted">120–1000</span></label>
+              <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Voltage (V) <span class="font-normal text-text-muted">120–1000</span></label>
               <input
                 type="number"
                 min={120}
@@ -341,7 +344,7 @@ export function SimulatorView() {
               />
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Current (A) <span class="font-normal text-text-muted">1–500</span></label>
+              <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Current (A) <span class="font-normal text-text-muted">1–500</span></label>
               <input
                 type="number"
                 min={1}
@@ -352,15 +355,14 @@ export function SimulatorView() {
               />
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Phase</label>
-              <select
+              <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Phase</label>
+              <Select
                 value={newPhase()}
-                onChange={(e) => setNewPhase(Number(e.currentTarget.value) as 1 | 3)}
-                class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
-              >
-                <option value={1}>1-Phase</option>
-                <option value={3}>3-Phase</option>
-              </select>
+                options={PHASE_OPTIONS}
+                onChange={setNewPhase}
+                aria-label="Connector phase"
+                class="w-28"
+              />
             </div>
             <button
               onClick={handleAddConnector}
@@ -383,9 +385,9 @@ export function SimulatorView() {
       <ConnectorStrip />
 
       {/* Main Grid: Selected Connector Detail + Actions */}
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         {/* Connector Detail */}
-        <div class="lg:col-span-2 space-y-4">
+        <div class="md:col-span-2 space-y-4">
           <Show when={currentConnector()}>
             {(connector) => (
               <div class="glass-card p-6">
@@ -396,7 +398,7 @@ export function SimulatorView() {
                   </h3>
                   <div class="flex items-center gap-2">
                     <span class={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                      "px-2 py-0.5 rounded text-xs font-bold uppercase",
                       connector().status === "Charging" ? "bg-accent-teal/10 text-accent-teal" :
                       connector().status === "Faulted" ? "bg-red-500/10 text-red-400" :
                       connector().status === "Available" ? "bg-green-500/10 text-green-400" :
@@ -406,13 +408,13 @@ export function SimulatorView() {
                     </span>
                     <button
                       onClick={() => handleSetAvailability("Inoperative")}
-                      class="px-2 py-0.5 rounded text-[9px] border border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
+                      class="px-2 py-0.5 rounded text-xs border border-orange-500/30 text-orange-300 hover:bg-orange-500/10"
                     >
                       Inoperative
                     </button>
                     <button
                       onClick={() => handleSetAvailability("Operative")}
-                      class="px-2 py-0.5 rounded text-[9px] border border-green-500/30 text-green-300 hover:bg-green-500/10"
+                      class="px-2 py-0.5 rounded text-xs border border-green-500/30 text-green-300 hover:bg-green-500/10"
                     >
                       Operative
                     </button>
@@ -438,26 +440,26 @@ export function SimulatorView() {
                 <Show when={editingConnector()} fallback={
                   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="space-y-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Voltage</span>
+                      <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Voltage</span>
                       <p class="text-lg font-mono font-bold">{connector().voltage.toFixed(1)} <span class="text-xs text-text-muted">V</span></p>
                     </div>
                     <div class="space-y-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Current</span>
+                      <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Current</span>
                       <p class="text-lg font-mono font-bold">{connector().current.toFixed(1)} <span class="text-xs text-text-muted">A</span></p>
                     </div>
                     <div class="space-y-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Phase</span>
+                      <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Phase</span>
                       <p class="text-lg font-mono font-bold">{connector().phase}<span class="text-xs text-text-muted">φ</span></p>
                     </div>
                     <div class="space-y-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Plugged In</span>
+                      <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Plugged In</span>
                       <p class="text-lg font-mono font-bold">{connector().is_plugged_in ? "Yes" : "No"}</p>
                     </div>
                   </div>
                 }>
                   <div class="flex items-end gap-4">
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Voltage (V) <span class="font-normal text-text-muted">120–1000</span></label>
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Voltage (V) <span class="font-normal text-text-muted">120–1000</span></label>
                       <input
                         type="number"
                         min={120}
@@ -473,7 +475,7 @@ export function SimulatorView() {
                       />
                     </div>
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Current (A) <span class="font-normal text-text-muted">1–500</span></label>
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Current (A) <span class="font-normal text-text-muted">1–500</span></label>
                       <input
                         type="number"
                         min={1}
@@ -489,15 +491,14 @@ export function SimulatorView() {
                       />
                     </div>
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Phase</label>
-                      <select
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Phase</label>
+                      <Select
                         value={editPhase()}
-                        onChange={(e) => setEditPhase(Number(e.currentTarget.value) as 1 | 3)}
-                        class="bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none"
-                      >
-                        <option value={1}>1-Phase</option>
-                        <option value={3}>3-Phase</option>
-                      </select>
+                        options={PHASE_OPTIONS}
+                        onChange={setEditPhase}
+                        aria-label="Connector phase"
+                        class="w-28"
+                      />
                     </div>
                     <button
                       onClick={handleUpdateConnector}
@@ -537,19 +538,19 @@ export function SimulatorView() {
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Transaction ID</span>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Transaction ID</span>
                     <p class="text-sm font-mono font-bold">#{session().transaction_id}</p>
                   </div>
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Energy Charged</span>
-                    <p class="text-sm font-mono font-bold">{(session().energy_charged_wh / 1000).toFixed(2)} <span class="text-[10px] text-text-muted">kWh</span></p>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Energy Charged</span>
+                    <p class="text-sm font-mono font-bold">{(session().energy_charged_wh / 1000).toFixed(2)} <span class="text-xs text-text-muted">kWh</span></p>
                   </div>
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">SoC</span>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">SoC</span>
                     <p class="text-sm font-mono font-bold">{session().state_of_charge}%</p>
                   </div>
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Started</span>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Started</span>
                     <p class="text-sm font-mono font-bold">{new Date(session().start_time).toLocaleTimeString([], { hour12: false })}</p>
                   </div>
                 </div>
@@ -577,11 +578,11 @@ export function SimulatorView() {
                 </h3>
                 <div class="grid grid-cols-2 gap-4">
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Meter Reading</span>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Meter Reading</span>
                     <p class="text-lg font-mono font-bold">{(meter().reading_wh / 1000).toFixed(3)} <span class="text-xs text-text-muted">kWh</span></p>
                   </div>
                   <div class="space-y-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Charging</span>
+                    <span class="text-xs font-bold uppercase tracking-widest text-text-muted">Charging</span>
                     <p class="text-lg font-mono font-bold">{meter().is_charging ? "Active" : "Idle"}</p>
                   </div>
                 </div>
@@ -598,7 +599,7 @@ export function SimulatorView() {
               </h3>
               <button
                 onClick={() => { setShowSessionHistory(!showSessionHistory()); refetchSessions(); refetchLastStopped(); }}
-                class="text-[10px] text-accent-teal hover:text-accent-teal/80"
+                class="text-xs text-accent-teal hover:text-accent-teal/80"
               >
                 {showSessionHistory() ? "Hide" : "Show"}
               </button>
@@ -611,7 +612,7 @@ export function SimulatorView() {
 
                 return (
                   <div class="p-3 rounded-lg border border-border-default bg-bg-main/50 mb-3">
-                    <div class="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Last Completed Session</div>
+                    <div class="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Last Completed Session</div>
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                       <div><span class="text-text-muted">Tx #</span> <span class="font-mono font-bold">{stopped.transaction_id}</span></div>
                       <div><span class="text-text-muted">Connector</span> <span class="font-mono font-bold">{stopped.connector_id}</span></div>
@@ -643,7 +644,7 @@ export function SimulatorView() {
                           <span class="text-text-muted">{session.state_of_charge}%</span>
                         </div>
                         <span class={cn(
-                          "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                          "px-1.5 py-0.5 rounded text-xs font-bold uppercase",
                           session.is_charging ? "bg-accent-teal/10 text-accent-teal" : "bg-zinc-700/50 text-text-muted"
                         )}>
                           {session.is_charging ? "Active" : "Stopped"}
@@ -670,12 +671,12 @@ export function SimulatorView() {
             <Calendar size={16} class="text-text-muted" />
             Reservations
             <Show when={activeReservations().length > 0}>
-              <span class="text-[10px] font-normal text-text-muted">({activeReservations().length})</span>
+              <span class="text-xs font-normal text-text-muted">({activeReservations().length})</span>
             </Show>
           </h3>
           <button
             onClick={() => setAddingReservation(!addingReservation())}
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-teal/10 border border-accent-teal/30 text-accent-teal text-[10px] font-bold hover:bg-accent-teal/20 transition-all"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-teal/10 border border-accent-teal/30 text-accent-teal text-xs font-bold hover:bg-accent-teal/20 transition-all"
           >
             <Plus size={12} />
             Add Reservation
@@ -686,22 +687,22 @@ export function SimulatorView() {
           <div class="p-4 rounded-lg border border-accent-teal/20 bg-accent-teal/5 mb-4">
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
               <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Reservation ID</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Reservation ID</label>
                 <input type="number" value={resReservationId()} onInput={(e) => setResReservationId(Number(e.currentTarget.value))}
                   class="w-full bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
               </div>
               <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
                 <input type="number" value={resConnectorId()} onInput={(e) => setResConnectorId(Number(e.currentTarget.value))}
                   class="w-full bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
               </div>
               <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">ID Tag</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted">ID Tag</label>
                 <input type="text" value={resIdTag()} onInput={(e) => setResIdTag(e.currentTarget.value)} placeholder="e.g. Tag001"
                   class="w-full bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
               </div>
               <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Expiry Date</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Expiry Date</label>
                 <input type="datetime-local" value={resExpiryDate()} onInput={(e) => setResExpiryDate(e.currentTarget.value)}
                   class="w-full bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
               </div>
@@ -718,7 +719,7 @@ export function SimulatorView() {
             </div>
             <div class="mt-2">
               <div class="space-y-1">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Parent ID Tag (optional)</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Parent ID Tag (optional)</label>
                 <input type="text" value={resParentIdTag()} onInput={(e) => setResParentIdTag(e.currentTarget.value)} placeholder="optional"
                   class="w-48 bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
               </div>
@@ -753,7 +754,7 @@ export function SimulatorView() {
       </div>
 
       {/* Charging Profiles + Firmware/Diagnostics */}
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         {/* Charging Profiles */}
         <div class="glass-card p-6">
           <div class="flex items-center justify-between mb-4">
@@ -761,20 +762,20 @@ export function SimulatorView() {
               <Layers size={16} class="text-text-muted" />
               Charging Profiles
               <Show when={profiles()}>
-                <span class="text-[10px] font-normal text-text-muted">({profiles()!.length})</span>
+                <span class="text-xs font-normal text-text-muted">({profiles()!.length})</span>
               </Show>
             </h3>
             <div class="flex gap-2">
               <button
                 onClick={() => setShowComposite(!showComposite())}
-                class="flex items-center gap-1 px-2 py-1 rounded text-[10px] border border-border-default text-text-secondary hover:bg-white/5 transition-colors"
+                class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-border-default text-text-secondary hover:bg-white/5 transition-colors"
               >
                 <Eye size={10} />
                 Composite
               </button>
               <button
                 onClick={() => setAddingProfile(!addingProfile())}
-                class="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all"
+                class="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all"
               >
                 <Plus size={10} />
                 Add
@@ -787,22 +788,22 @@ export function SimulatorView() {
             <div class="p-3 rounded-lg border border-blue-500/20 bg-blue-500/5 mb-4">
               <div class="flex items-end gap-3 mb-3">
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
                   <input type="number" value={compositeConnectorId()} onInput={(e) => setCompositeConnectorId(Number(e.currentTarget.value))}
                     class="w-20 bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Duration (s)</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Duration (s)</label>
                   <input type="number" value={compositeDuration()} onInput={(e) => setCompositeDuration(Number(e.currentTarget.value))}
                     class="w-24 bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <button onClick={handleGetCompositeSchedule}
-                  class="px-3 py-1.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold hover:bg-blue-500/30 transition-colors">
+                  class="px-3 py-1.5 rounded bg-blue-500/20 text-blue-300 text-xs font-bold hover:bg-blue-500/30 transition-colors">
                   Get Schedule
                 </button>
               </div>
               <Show when={compositeResult()}>
-                <div class="text-[10px] font-mono text-text-secondary max-h-32 overflow-y-auto custom-scrollbar">
+                <div class="text-xs font-mono text-text-secondary max-h-32 overflow-y-auto custom-scrollbar">
                   <pre>{JSON.stringify(compositeResult(), null, 2)}</pre>
                 </div>
               </Show>
@@ -814,77 +815,78 @@ export function SimulatorView() {
             <div class="p-3 rounded-lg border border-accent-teal/20 bg-accent-teal/5 mb-4 space-y-3">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Connector ID</label>
                   <input type="number" value={profileConnectorId()} onInput={(e) => setProfileConnectorId(Number(e.currentTarget.value))}
                     class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Stack Level</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Stack Level</label>
                   <input type="number" value={profileStackLevel()} onInput={(e) => setProfileStackLevel(Number(e.currentTarget.value))}
                     class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Purpose</label>
-                  <select value={profilePurpose()} onChange={(e) => setProfilePurpose(e.currentTarget.value)}
-                    class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs focus:border-accent-teal/50 focus:outline-none">
-                    <option value="ChargePointMaxProfile">ChargePointMaxProfile</option>
-                    <option value="TxDefaultProfile">TxDefaultProfile</option>
-                    <option value="TxProfile">TxProfile</option>
-                  </select>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Purpose</label>
+                  <Select
+                    value={profilePurpose()}
+                    options={PROFILE_PURPOSE_OPTIONS}
+                    onChange={setProfilePurpose}
+                    aria-label="Profile purpose"
+                  />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Kind</label>
-                  <select value={profileKind()} onChange={(e) => setProfileKind(e.currentTarget.value)}
-                    class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs focus:border-accent-teal/50 focus:outline-none">
-                    <option value="Absolute">Absolute</option>
-                    <option value="Recurring">Recurring</option>
-                    <option value="Relative">Relative</option>
-                  </select>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Kind</label>
+                  <Select
+                    value={profileKind()}
+                    options={PROFILE_KIND_OPTIONS}
+                    onChange={setProfileKind}
+                    aria-label="Profile kind"
+                  />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Rate Unit</label>
-                  <select value={profileRateUnit()} onChange={(e) => setProfileRateUnit(e.currentTarget.value as "W" | "A")}
-                    class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs focus:border-accent-teal/50 focus:outline-none">
-                    <option value="W">Watts (W)</option>
-                    <option value="A">Amps (A)</option>
-                  </select>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Rate Unit</label>
+                  <Select
+                    value={profileRateUnit()}
+                    options={PROFILE_RATE_UNIT_OPTIONS}
+                    onChange={setProfileRateUnit}
+                    aria-label="Rate unit"
+                  />
                 </div>
               </div>
               <div>
-                <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted block mb-1">Schedule Periods</label>
+                <label class="text-xs font-bold uppercase tracking-widest text-text-muted block mb-1">Schedule Periods</label>
                 <For each={profilePeriods()}>
                   {(period, idx) => (
                     <div class="flex items-center gap-2 mb-1">
-                      <span class="text-[10px] text-text-muted w-6">#{idx() + 1}</span>
+                      <span class="text-xs text-text-muted w-6">#{idx() + 1}</span>
                       <input type="number" value={period.start_period} placeholder="Start (s)"
                         onInput={(e) => {
                           const p = [...profilePeriods()];
                           p[idx()] = { ...p[idx()], start_period: Number(e.currentTarget.value) };
                           setProfilePeriods(p);
                         }}
-                        class="w-20 bg-bg-main border border-border-default rounded px-2 py-1 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none" />
+                        class="w-20 bg-bg-main border border-border-default rounded px-2 py-1 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                       <input type="number" value={period.limit} placeholder={`Limit (${profileRateUnit()})`}
                         onInput={(e) => {
                           const p = [...profilePeriods()];
                           p[idx()] = { ...p[idx()], limit: Number(e.currentTarget.value) };
                           setProfilePeriods(p);
                         }}
-                        class="w-20 bg-bg-main border border-border-default rounded px-2 py-1 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none" />
+                        class="w-20 bg-bg-main border border-border-default rounded px-2 py-1 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                       <button onClick={() => setProfilePeriods(profilePeriods().filter((_, i) => i !== idx()))}
                         class="text-red-400 hover:text-red-300"><Trash2 size={10} /></button>
                     </div>
                   )}
                 </For>
                 <button onClick={appendProfilePeriod}
-                  class="text-[10px] text-accent-teal hover:text-accent-teal/80 mt-1">+ Add Period</button>
+                  class="text-xs text-accent-teal hover:text-accent-teal/80 mt-1">+ Add Period</button>
               </div>
               <div class="flex gap-2">
                 <button onClick={handleCreateProfile}
-                  class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-[10px] font-bold hover:bg-accent-teal/90 transition-colors">
+                  class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-xs font-bold hover:bg-accent-teal/90 transition-colors">
                   Create Profile
                 </button>
                 <button onClick={() => setAddingProfile(false)}
-                  class="px-3 py-1.5 rounded border border-border-default text-[10px] hover:bg-white/5 transition-colors">
+                  class="px-3 py-1.5 rounded border border-border-default text-xs hover:bg-white/5 transition-colors">
                   Cancel
                 </button>
               </div>
@@ -901,7 +903,7 @@ export function SimulatorView() {
                     <div class="flex items-center justify-between mb-1">
                       <span class="font-bold">Profile #{profile.profile_id}</span>
                       <div class="flex items-center gap-2">
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-teal/10 text-accent-teal">{profile.purpose}</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded bg-accent-teal/10 text-accent-teal">{profile.purpose}</span>
                         <button
                           onClick={() => handleDeleteProfile(profile.profile_id, profile.connector_id)}
                           class="text-red-400 hover:text-red-300 p-0.5"
@@ -915,7 +917,7 @@ export function SimulatorView() {
                       Connector {profile.connector_id} · Stack Level {profile.stack_level} · {profile.charging_profile_kind}
                     </div>
                     <Show when={profile.schedule_period.length > 0}>
-                      <div class="mt-2 text-[10px] text-text-muted">
+                      <div class="mt-2 text-xs text-text-muted">
                         {profile.schedule_period.length} schedule period(s), max limit: {Math.max(...profile.schedule_period.map(p => p.limit))}A
                       </div>
                     </Show>
@@ -937,13 +939,13 @@ export function SimulatorView() {
               <div class="flex gap-2">
                 <Show when={firmware()?.status !== "Idle"}>
                   <button onClick={handleCancelFirmware}
-                    class="flex items-center gap-1 px-2 py-1 rounded text-[10px] border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
+                    class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
                     <XCircle size={10} />
                     Cancel
                   </button>
                 </Show>
                 <button onClick={() => setShowFwForm(!showFwForm())}
-                  class="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all">
+                  class="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all">
                   <Upload size={10} />
                   Update
                 </button>
@@ -953,22 +955,22 @@ export function SimulatorView() {
             <Show when={showFwForm()}>
               <div class="p-3 rounded-lg border border-accent-teal/20 bg-accent-teal/5 mb-4 space-y-2">
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Firmware Location URL</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Firmware Location URL</label>
                   <input type="text" value={fwLocation()} onInput={(e) => setFwLocation(e.currentTarget.value)} placeholder="https://example.com/firmware.bin"
                     class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Retrieve Date</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Retrieve Date</label>
                   <input type="datetime-local" value={fwRetrieveDate()} onInput={(e) => setFwRetrieveDate(e.currentTarget.value)}
                     class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="flex gap-2">
                   <button onClick={handleTriggerFirmware} disabled={!fwLocation()}
-                    class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-[10px] font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
+                    class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-xs font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
                     Trigger Update
                   </button>
                   <button onClick={() => setShowFwForm(false)}
-                    class="px-3 py-1.5 rounded border border-border-default text-[10px] hover:bg-white/5 transition-colors">
+                    class="px-3 py-1.5 rounded border border-border-default text-xs hover:bg-white/5 transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -1006,7 +1008,7 @@ export function SimulatorView() {
                     </div>
                   </Show>
                   <Show when={fw().error}>
-                    <p class="text-red-400 text-[10px]">{fw().error}</p>
+                    <p class="text-red-400 text-xs">{fw().error}</p>
                   </Show>
                 </div>
               )}
@@ -1022,13 +1024,13 @@ export function SimulatorView() {
               <div class="flex gap-2">
                 <Show when={diagnostics()?.status !== "Idle"}>
                   <button onClick={handleCancelDiagnostics}
-                    class="flex items-center gap-1 px-2 py-1 rounded text-[10px] border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
+                    class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors">
                     <XCircle size={10} />
                     Cancel
                   </button>
                 </Show>
                 <button onClick={() => setShowDiagForm(!showDiagForm())}
-                  class="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all">
+                  class="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all">
                   <Upload size={10} />
                   Upload
                 </button>
@@ -1038,29 +1040,29 @@ export function SimulatorView() {
             <Show when={showDiagForm()}>
               <div class="p-3 rounded-lg border border-accent-teal/20 bg-accent-teal/5 mb-4 space-y-2">
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Upload Location URL</label>
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Upload Location URL</label>
                   <input type="text" value={diagLocation()} onInput={(e) => setDiagLocation(e.currentTarget.value)} placeholder="https://example.com/diagnostics"
                     class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <div class="space-y-1">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Retries</label>
+                    <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Retries</label>
                     <input type="number" value={diagRetries()} onInput={(e) => setDiagRetries(Number(e.currentTarget.value))}
                       class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                   </div>
                   <div class="space-y-1">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Retry Interval (s)</label>
+                    <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Retry Interval (s)</label>
                     <input type="number" value={diagRetryInterval()} onInput={(e) => setDiagRetryInterval(Number(e.currentTarget.value))}
                       class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                   </div>
                 </div>
                 <div class="flex gap-2">
                   <button onClick={handleTriggerDiagnostics} disabled={!diagLocation()}
-                    class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-[10px] font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
+                    class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-xs font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
                     Trigger Upload
                   </button>
                   <button onClick={() => setShowDiagForm(false)}
-                    class="px-3 py-1.5 rounded border border-border-default text-[10px] hover:bg-white/5 transition-colors">
+                    class="px-3 py-1.5 rounded border border-border-default text-xs hover:bg-white/5 transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -1080,7 +1082,7 @@ export function SimulatorView() {
                     </div>
                   </Show>
                   <Show when={diag().error}>
-                    <p class="text-red-400 text-[10px]">{diag().error}</p>
+                    <p class="text-red-400 text-xs">{diag().error}</p>
                   </Show>
                 </div>
               )}

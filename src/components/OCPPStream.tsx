@@ -1,12 +1,7 @@
 import { createResource, For, onCleanup, Show } from "solid-js";
 import { api } from "../lib/api";
 import { Terminal } from "lucide-solid";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
 
 export function OCPPStream() {
   const [events, { refetch }] = createResource(() => api.getTimeline({ limit: 20 }));
@@ -23,7 +18,7 @@ export function OCPPStream() {
         <Terminal size={18} class="text-text-muted" />
         OCPP Stream
       </h3>
-      <div class="space-y-3 font-mono text-[11px] overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-40">
+      <div class="space-y-3 font-mono text-xs overflow-y-auto flex-1 pr-2 custom-scrollbar min-h-32">
         <For each={events()?.events}>
           {(event) => {
             const isSent = event.direction === "outbound";

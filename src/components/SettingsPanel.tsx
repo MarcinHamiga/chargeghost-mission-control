@@ -5,12 +5,10 @@ import { state } from "../store/simulator";
 import { bridgeUnavailableMessage } from "../lib/http";
 import { addToast } from "../store/toast";
 import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
+import { requestConfirm } from "../store/confirm";
+import { Select } from "./Select";
+import { AUTH_STATUS_OPTIONS, toSelectOptions } from "../lib/select-options";
 
 export function SettingsPanel() {
   const [config, { refetch: refetchConfig }] = createResource(() => api.getConfig());
@@ -75,7 +73,7 @@ export function SettingsPanel() {
   };
 
   const handleClearAuthList = async () => {
-    if (!confirm("Clear all local authorization entries?")) return;
+    if (!(await requestConfirm("Clear all local authorization entries?"))) return;
     try {
       await api.clearLocalAuthList();
       refetchLocalAuth();
@@ -169,7 +167,7 @@ export function SettingsPanel() {
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold flex items-center gap-2">
           <Settings size={22} class="text-accent-teal" />
-          Configuration
+          Settings
         </h2>
         <div class="flex items-center gap-3">
           <Show when={saveMsg()}>
@@ -207,7 +205,7 @@ export function SettingsPanel() {
                   field.type === "text" || field.type === "password" ? "md:col-span-1" : "",
                   field.key === "connection_url" && "md:col-span-2"
                 )}>
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted flex items-center gap-1.5">
+                  <label class="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-1.5">
                     {field.icon && <field.icon size={10} />}
                     {field.label}
                   </label>
@@ -226,15 +224,12 @@ export function SettingsPanel() {
                       )} />
                     </button>
                   ) : field.type === "select" ? (
-                    <select
+                    <Select
                       value={currentValue(field.key) || ""}
-                      onChange={(e) => updateField(field.key, e.currentTarget.value)}
-                      class="w-full bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs focus:border-accent-teal/50 focus:outline-none transition-colors"
-                    >
-                      <For each={field.options}>
-                        {(opt) => <option value={opt}>{opt}</option>}
-                      </For>
-                    </select>
+                      options={toSelectOptions(field.options ?? [])}
+                      onChange={(value) => updateField(field.key, value)}
+                      aria-label={field.label}
+                    />
                   ) : (
                     <input
                       type={field.type === "number" ? "number" : "text"}
@@ -277,7 +272,7 @@ export function SettingsPanel() {
             </h3>
             <button
               onClick={() => refetchOcppStatus()}
-              class="text-[10px] text-accent-teal hover:underline"
+              class="text-xs text-accent-teal hover:underline"
             >
               Refresh
             </button>
@@ -315,7 +310,7 @@ export function SettingsPanel() {
               <Key size={14} />
               OCPP Configuration Keys
               <Show when={ocppKeys()}>
-                <span class="text-[10px] font-normal text-text-muted">({ocppKeys()!.length} keys)</span>
+                <span class="text-xs font-normal text-text-muted">({ocppKeys()!.length} keys)</span>
               </Show>
             </h3>
             {ocppExpanded() ? <ChevronDown size={16} class="text-text-muted" /> : <ChevronRight size={16} class="text-text-muted" />}
@@ -324,7 +319,7 @@ export function SettingsPanel() {
           <Show when={ocppExpanded()}>
             <div class="px-6 pb-6">
               <div class="border border-border-default rounded-lg overflow-hidden">
-                <div class="grid grid-cols-[1fr_1fr_80px] gap-0 text-[10px] font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+                <div class="grid grid-cols-[1fr_1fr_80px] gap-0 text-xs font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
                   <span>Key</span>
                   <span>Value</span>
                   <span class="text-center">Status</span>
@@ -379,7 +374,7 @@ export function SettingsPanel() {
                         </div>
                         <div class="flex justify-center gap-2">
                           <span class={cn(
-                            "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                            "px-1.5 py-0.5 rounded text-xs font-bold uppercase",
                             entry.readonly ? "bg-orange-500/10 text-orange-400" : "bg-accent-teal/10 text-accent-teal"
                           )}>
                             {entry.readonly ? "RO" : "RW"}
@@ -404,7 +399,7 @@ export function SettingsPanel() {
               <Users size={14} />
               Local Authorization List
               <Show when={localAuth()}>
-                <span class="text-[10px] font-normal text-text-muted">
+                <span class="text-xs font-normal text-text-muted">
                   ({localAuth()!.entry_count}/{localAuth()!.max_entries} entries, v{localAuth()!.version})
                 </span>
               </Show>
@@ -418,7 +413,7 @@ export function SettingsPanel() {
               <div class="flex items-center justify-between mb-4">
                 <Show when={localAuth()}>
                   <span class={cn(
-                    "text-[10px] px-2 py-0.5 rounded font-bold uppercase",
+                    "text-xs px-2 py-0.5 rounded font-bold uppercase",
                     localAuth()!.enabled ? "bg-accent-teal/10 text-accent-teal" : "bg-red-500/10 text-red-400"
                   )}>
                     {localAuth()!.enabled ? "Enabled" : "Disabled"}
@@ -427,7 +422,7 @@ export function SettingsPanel() {
                 <div class="flex gap-2">
                   <button
                     onClick={() => setAddingAuthEntry(!addingAuthEntry())}
-                    class="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all"
+                    class="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-teal/10 border border-accent-teal/30 text-accent-teal font-bold hover:bg-accent-teal/20 transition-all"
                   >
                     <Plus size={10} />
                     Add Entry
@@ -435,7 +430,7 @@ export function SettingsPanel() {
                   <button
                     onClick={handleClearAuthList}
                     disabled={!localAuth() || localAuth()!.entry_count === 0}
-                    class="flex items-center gap-1 px-2 py-1 rounded text-[10px] border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                   >
                     <Trash2 size={10} />
                     Clear All
@@ -448,33 +443,31 @@ export function SettingsPanel() {
                 <div class="p-3 rounded-lg border border-accent-teal/20 bg-accent-teal/5 mb-4">
                   <div class="grid grid-cols-4 gap-3 items-end">
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">ID Tag</label>
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">ID Tag</label>
                       <input type="text" value={newAuthIdTag()} onInput={(e) => setNewAuthIdTag(e.currentTarget.value)} placeholder="Tag001"
                         class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                     </div>
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Status</label>
-                      <select value={newAuthStatus()} onChange={(e) => setNewAuthStatus(e.currentTarget.value)}
-                        class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs focus:border-accent-teal/50 focus:outline-none">
-                        <option value="Accepted">Accepted</option>
-                        <option value="Blocked">Blocked</option>
-                        <option value="Expired">Expired</option>
-                        <option value="Invalid">Invalid</option>
-                        <option value="ConcurrentTx">ConcurrentTx</option>
-                      </select>
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Status</label>
+                      <Select
+                        value={newAuthStatus()}
+                        options={AUTH_STATUS_OPTIONS}
+                        onChange={setNewAuthStatus}
+                        aria-label="Authorization status"
+                      />
                     </div>
                     <div class="space-y-1">
-                      <label class="text-[10px] font-bold uppercase tracking-widest text-text-muted">Expiry (optional)</label>
+                      <label class="text-xs font-bold uppercase tracking-widest text-text-muted">Expiry (optional)</label>
                       <input type="datetime-local" value={newAuthExpiry()} onInput={(e) => setNewAuthExpiry(e.currentTarget.value)}
                         class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none" />
                     </div>
                     <div class="flex gap-2">
                       <button onClick={handleAddAuthEntry} disabled={!newAuthIdTag()}
-                        class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-[10px] font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
+                        class="px-3 py-1.5 rounded bg-accent-teal text-bg-main text-xs font-bold hover:bg-accent-teal/90 transition-colors disabled:opacity-50">
                         Add
                       </button>
                       <button onClick={() => setAddingAuthEntry(false)}
-                        class="px-3 py-1.5 rounded border border-border-default text-[10px] hover:bg-white/5 transition-colors">
+                        class="px-3 py-1.5 rounded border border-border-default text-xs hover:bg-white/5 transition-colors">
                         Cancel
                       </button>
                     </div>
@@ -483,15 +476,15 @@ export function SettingsPanel() {
               </Show>
 
               {/* Entries table */}
-              <div class="border border-border-default rounded-lg overflow-hidden">
-                <div class="grid grid-cols-[1fr_100px_80px_1fr_60px] gap-0 text-[10px] font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+              <div class="border border-border-default rounded-lg overflow-x-auto custom-scrollbar">
+                <div class="grid grid-cols-[minmax(6rem,1fr)_6rem_4rem_minmax(8rem,1fr)_3.5rem] gap-0 min-w-[32rem] text-xs font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
                   <span>ID Tag</span>
                   <span>Status</span>
                   <span>Expired</span>
                   <span>Expiry</span>
                   <span class="text-center">Actions</span>
                 </div>
-                <div class="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-border-default">
+                <div class="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-border-default min-w-[32rem]">
                   <Show when={localAuth()?.entries && localAuth()!.entries.length > 0} fallback={
                     <div class="px-4 py-6 text-center text-text-muted text-xs italic">
                       No authorization entries
@@ -499,10 +492,10 @@ export function SettingsPanel() {
                   }>
                     <For each={localAuth()?.entries}>
                       {(entry) => (
-                        <div class="grid grid-cols-[1fr_100px_80px_1fr_60px] gap-0 px-4 py-2 text-xs items-center hover:bg-white/[0.02]">
+                        <div class="grid grid-cols-[minmax(6rem,1fr)_6rem_4rem_minmax(8rem,1fr)_3.5rem] gap-0 px-4 py-2 text-xs items-center hover:bg-white/[0.02]">
                           <span class="font-mono text-text-secondary">{entry.id_tag}</span>
                           <span class={cn(
-                            "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase w-fit",
+                            "px-1.5 py-0.5 rounded text-xs font-bold uppercase w-fit",
                             entry.authorization_status === "Accepted" ? "bg-green-500/10 text-green-400" :
                             entry.authorization_status === "Blocked" ? "bg-red-500/10 text-red-400" :
                             entry.authorization_status === "Expired" ? "bg-orange-500/10 text-orange-400" :
@@ -511,12 +504,12 @@ export function SettingsPanel() {
                             {entry.authorization_status}
                           </span>
                           <span class={cn(
-                            "text-[9px] font-bold uppercase",
+                            "text-xs font-bold uppercase",
                             entry.is_expired ? "text-orange-400" : "text-text-muted"
                           )}>
                             {entry.is_expired ? "Yes" : "No"}
                           </span>
-                          <span class="text-text-muted font-mono text-[10px]">
+                          <span class="text-text-muted font-mono text-xs">
                             {entry.expiry_date ? new Date(entry.expiry_date).toLocaleString() : "—"}
                           </span>
                           <div class="flex justify-center">

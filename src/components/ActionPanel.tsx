@@ -14,12 +14,7 @@ import {
   Zap,
 } from "lucide-solid";
 import { createSignal, Show } from "solid-js";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from "../lib/cn";
 
 export function ActionPanel() {
   const [loading, setLoading] = createSignal<string | null>(null);
@@ -85,12 +80,12 @@ export function ActionPanel() {
           Start Charging
         </button>
 
-        <p class="text-[9px] text-text-muted px-1 -mt-1">
+        <p class="text-xs text-text-muted px-1 -mt-1">
           Uses <span class="font-mono">config.rfid_tag</span>, not the connector RFID tag.
         </p>
 
         <div class="space-y-1 px-1">
-          <label class="text-[9px] font-bold uppercase tracking-widest text-text-muted">
+          <label class="text-xs font-bold uppercase tracking-widest text-text-muted">
             Start timeout (s, optional)
           </label>
           <input
@@ -101,7 +96,7 @@ export function ActionPanel() {
               setChargeTimeout(e.currentTarget.value === "" ? "" : Number(e.currentTarget.value))
             }
             placeholder="Queue if unplugged"
-            class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none"
+            class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none"
           />
         </div>
 
@@ -169,7 +164,7 @@ export function ActionPanel() {
                   })
                 }
                 disabled={!rfidInput() || loading() !== null}
-                class="px-2 py-1 rounded bg-accent-teal text-bg-main text-[10px] font-bold hover:bg-accent-teal/90 disabled:opacity-50"
+                class="px-2 py-1 rounded bg-accent-teal text-bg-main text-xs font-bold hover:bg-accent-teal/90 disabled:opacity-50"
               >
                 Set
               </button>
@@ -183,7 +178,7 @@ export function ActionPanel() {
                   })
                 }
                 disabled={loading() !== null}
-                class="w-full flex items-center justify-center gap-1.5 px-2 py-1 rounded border border-red-500/20 text-red-400 text-[10px] hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                class="w-full flex items-center justify-center gap-1.5 px-2 py-1 rounded border border-red-500/20 text-red-400 text-xs hover:bg-red-500/10 transition-colors disabled:opacity-50"
               >
                 <X size={10} />
                 Clear RFID
@@ -203,7 +198,7 @@ export function ActionPanel() {
         <Show when={showStartSession()}>
           <div class="p-2 rounded-lg border border-blue-500/20 bg-blue-500/5 space-y-2">
             <div class="space-y-1">
-              <label class="text-[9px] font-bold uppercase tracking-widest text-text-muted">
+              <label class="text-xs font-bold uppercase tracking-widest text-text-muted">
                 ID Tag (optional)
               </label>
               <input
@@ -211,11 +206,11 @@ export function ActionPanel() {
                 value={sessionIdTag()}
                 onInput={(e) => setSessionIdTag(e.currentTarget.value)}
                 placeholder="Defaults to config.rfid_tag"
-                class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none"
+                class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none"
               />
             </div>
             <div class="space-y-1">
-              <label class="text-[9px] font-bold uppercase tracking-widest text-text-muted">
+              <label class="text-xs font-bold uppercase tracking-widest text-text-muted">
                 Timeout (s, optional)
               </label>
               <input
@@ -228,10 +223,10 @@ export function ActionPanel() {
                   )
                 }
                 placeholder="Queue pending start if unplugged"
-                class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-[10px] font-mono focus:border-accent-teal/50 focus:outline-none"
+                class="w-full bg-bg-main border border-border-default rounded px-2 py-1.5 text-xs font-mono focus:border-accent-teal/50 focus:outline-none"
               />
             </div>
-            <p class="text-[9px] text-text-muted">
+            <p class="text-xs text-text-muted">
               SoC uses <span class="font-mono">ev_battery_capacity</span> (kWh) from config.
             </p>
             <button
@@ -245,7 +240,7 @@ export function ActionPanel() {
                 })
               }
               disabled={loading() !== null}
-              class="w-full px-2 py-1.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-bold hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+              class="w-full px-2 py-1.5 rounded bg-blue-500/20 text-blue-300 text-xs font-bold hover:bg-blue-500/30 transition-colors disabled:opacity-50"
             >
               Start Session
             </button>
@@ -254,7 +249,7 @@ export function ActionPanel() {
       </div>
 
       <div class="mt-4 pt-4 border-t border-border-default">
-        <div class="flex items-center justify-between text-[10px] text-text-muted uppercase tracking-widest font-bold">
+        <div class="flex items-center justify-between text-xs text-text-muted uppercase tracking-widest font-bold">
           <span>Selected</span>
           <span class="text-accent-teal">Connector {connectorId()}</span>
         </div>
