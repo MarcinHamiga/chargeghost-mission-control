@@ -1,4 +1,5 @@
-import { createSignal, For, Show, onMount, onCleanup } from "solid-js";
+import { createSignal, For, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { Portal } from "solid-js/web";
 import { ChevronDown, Check } from "lucide-solid";
 import { cn } from "../lib/cn";
 
@@ -17,9 +18,28 @@ type SelectProps<T extends string | number = string> = {
   "aria-label"?: string;
 };
 
+type MenuPosition = {
+  top: number;
+  left: number;
+  width: number;
+};
+
 export function Select<T extends string | number = string>(props: SelectProps<T>) {
   const [open, setOpen] = createSignal(false);
+  const [menuPosition, setMenuPosition] = createSignal<MenuPosition | null>(null);
   let containerRef: HTMLDivElement | undefined;
+  let buttonRef: HTMLButtonElement | undefined;
+  let menuRef: HTMLUListElement | undefined;
+
+  const updateMenuPosition = () => {
+    if (!buttonRef) return;
+    const rect = buttonRef.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  };
 
   const selectedLabel = () => {
     const opt = props.options.find((o) => o.value === props.value);
@@ -33,11 +53,27 @@ export function Select<T extends string | number = string>(props: SelectProps<T>
     close();
   };
 
+  createEffect(() => {
+    if (!open()) {
+      setMenuPosition(null);
+      return;
+    }
+
+    updateMenuPosition();
+    const reposition = () => updateMenuPosition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    onCleanup(() => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    });
+  });
+
   onMount(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef && !containerRef.contains(e.target as Node)) {
-        close();
-      }
+      const target = e.target as Node;
+      if (containerRef?.contains(target) || menuRef?.contains(target)) return;
+      close();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -55,12 +91,21 @@ export function Select<T extends string | number = string>(props: SelectProps<T>
   return (
     <div ref={containerRef!} class={cn("relative", props.class)}>
       <button
+        ref={buttonRef!}
         type="button"
         disabled={props.disabled}
         aria-haspopup="listbox"
         aria-expanded={open()}
         aria-label={props["aria-label"]}
-        onClick={() => !props.disabled && setOpen((prev) => !prev)}
+        onClick={() => {
+          if (props.disabled) return;
+          if (open()) {
+            close();
+            return;
+          }
+          updateMenuPosition();
+          setOpen(true);
+        }}
         class={cn(
           "w-full flex items-center justify-between gap-2",
           "bg-bg-main border border-border-default rounded-lg px-3 py-2 text-xs text-left text-text-primary",
@@ -76,41 +121,51 @@ export function Select<T extends string | number = string>(props: SelectProps<T>
         />
       </button>
 
-      <Show when={open()}>
-        <ul
-          role="listbox"
-          class={cn(
-            "absolute z-50 mt-1 w-full min-w-full max-h-60 overflow-y-auto custom-scrollbar",
-            "bg-bg-card border border-border-default rounded-lg shadow-xl py-1",
-            props.menuClass,
-          )}
-        >
-          <For each={props.options}>
-            {(option) => {
-              const isSelected = () => option.value === props.value;
-              return (
-                <li role="option" aria-selected={isSelected()}>
-                  <button
-                    type="button"
-                    onClick={() => select(option.value)}
-                    class={cn(
-                      "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-left",
-                      "hover:bg-white/5 transition-colors",
-                      isSelected()
-                        ? "bg-accent-teal/10 text-accent-teal"
-                        : "text-text-primary",
-                    )}
-                  >
-                    <span class="truncate">{option.label}</span>
-                    <Show when={isSelected()}>
-                      <Check size={12} class="shrink-0 text-accent-teal" />
-                    </Show>
-                  </button>
-                </li>
-              );
-            }}
-          </For>
-        </ul>
+      <Show when={open() && menuPosition()}>
+        {(position) => (
+          <Portal>
+            <ul
+              ref={menuRef!}
+              role="listbox"
+              style={{
+                top: `${position().top}px`,
+                left: `${position().left}px`,
+                width: `${position().width}px`,
+              }}
+              class={cn(
+                "fixed z-50 max-h-60 overflow-y-auto custom-scrollbar",
+                "bg-bg-card border border-border-default rounded-lg shadow-xl py-1",
+                props.menuClass,
+              )}
+            >
+              <For each={props.options}>
+                {(option) => {
+                  const isSelected = () => option.value === props.value;
+                  return (
+                    <li role="option" aria-selected={isSelected()}>
+                      <button
+                        type="button"
+                        onClick={() => select(option.value)}
+                        class={cn(
+                          "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs text-left",
+                          "hover:bg-white/5 transition-colors",
+                          isSelected()
+                            ? "bg-accent-teal/10 text-accent-teal"
+                            : "text-text-primary",
+                        )}
+                      >
+                        <span class="truncate">{option.label}</span>
+                        <Show when={isSelected()}>
+                          <Check size={12} class="shrink-0 text-accent-teal" />
+                        </Show>
+                      </button>
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </Portal>
+        )}
       </Show>
     </div>
   );

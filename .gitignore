@@ -4,3 +4,5 @@ dist
 .DS_Store
 .idea/
 src-tauri/communication.log
+
+src-tauri/bin
