@@ -6,7 +6,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build",
+    "icons:generate": "tauri icon public/chargeghost-icon.svg",
+    "build": "bun run icons:generate && vite build",
     "serve": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",

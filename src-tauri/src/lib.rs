@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use std::fs::{self, OpenOptions};
@@ -12,6 +12,16 @@ fn log_dir() -> PathBuf {
         .join(".chargeghost");
     fs::create_dir_all(&dir).expect("could not create ~/.chargeghost");
     dir
+}
+
+#[tauri::command]
+fn splash_frontend_ready(app: AppHandle) {
+    if let Some(splash) = app.get_webview_window("splashscreen") {
+        let _ = splash.close();
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+    }
 }
 
 #[tauri::command]
@@ -33,7 +43,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![log_to_terminal])
+        .invoke_handler(tauri::generate_handler![log_to_terminal, splash_frontend_ready])
         .setup(|app| {
             let (mut rx, child) = app.shell().sidecar("chargeghost-core")
                 .expect("failed to create sidecar command")

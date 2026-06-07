@@ -9,7 +9,6 @@ import {
   ArrowUpRight,
   Wifi,
   Cpu,
-  RefreshCw,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-solid";
@@ -29,6 +28,8 @@ import { useTelemetrySampler } from "./hooks/useTelemetrySampler";
 import { getConnectorTelemetry, getRevision } from "./store/telemetry";
 import { ToastContainer } from "./components/ToastContainer";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { ChargeGhostLogo } from "./components/ChargeGhostLogo";
+import { SplashScreen } from "./components/SplashScreen";
 import { addToast } from "./store/toast";
 
 const SIDEBAR_COLLAPSED_KEY = "cg-sidebar-collapsed";
@@ -92,6 +93,7 @@ export default function MissionControl() {
     state.snapshot?.ocpp_connected ? "CSMS · connected" : "CSMS · disconnected";
 
   return (
+    <Show when={state.snapshot} fallback={<SplashScreen />}>
     <div class="flex h-screen bg-bg-main overflow-hidden text-sm">
       <ToastContainer />
       <ConfirmDialog />
@@ -103,9 +105,7 @@ export default function MissionControl() {
         )}
       >
         <div class={cn("flex items-center mb-4", sidebarCollapsed() ? "justify-center" : "gap-2 px-1")}>
-          <div class="bg-accent-teal rounded-lg p-1.5 shrink-0">
-            <Zap size={20} class="text-bg-main fill-current" />
-          </div>
+          <ChargeGhostLogo size={sidebarCollapsed() ? 28 : 24} />
           <Show when={!sidebarCollapsed()}>
             <span class="font-bold text-base tracking-tight truncate">ChargeGhost</span>
           </Show>
@@ -222,15 +222,6 @@ export default function MissionControl() {
       </aside>
 
       <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 bg-linear-to-b from-bg-main to-bg-secondary min-w-0">
-        <Show
-          when={state.snapshot}
-          fallback={
-            <div class="h-full flex flex-col items-center justify-center space-y-4 opacity-50">
-              <RefreshCw size={48} class="animate-spin text-accent-teal" />
-              <p class="text-lg font-medium animate-pulse">Initializing Mission Control...</p>
-            </div>
-          }
-        >
           <Switch>
             <Match when={activeTab() === "dashboard"}>
               <header class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-5">
@@ -508,8 +499,8 @@ export default function MissionControl() {
               <SettingsPanel />
             </Match>
           </Switch>
-        </Show>
       </main>
     </div>
+    </Show>
   );
 }
