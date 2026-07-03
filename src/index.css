@@ -51,6 +51,16 @@
   --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
 }
 
+/* ==========================================================================
+   Density toggle. Every Tailwind numeric spacing/sizing utility resolves to
+   calc(var(--spacing) * n), so shrinking --spacing tightens padding, gaps and
+   fixed heights across the whole UI at once — without touching type sizes.
+   Kept unlayered + higher specificity than :root so it always wins the cascade.
+   ========================================================================== */
+html[data-density="compact"] {
+  --spacing: 0.212rem; /* ~85% of the 0.25rem default */
+}
+
 @layer base {
   body {
     @apply bg-bg-main text-text-primary antialiased;

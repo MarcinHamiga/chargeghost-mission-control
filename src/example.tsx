@@ -1,13 +1,15 @@
-import { createResource, Show, Switch, Match } from "solid-js";
+import { createResource, createEffect, Show, Switch, Match } from "solid-js";
 import { state } from "./store/simulator";
-import { activeView } from "./store/ui";
+import { activeView, density } from "./store/ui";
 import { api } from "./lib/api";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTelemetrySampler } from "./hooks/useTelemetrySampler";
 import { useHotkeys } from "./hooks/useHotkeys";
+import { useNativeNotifications } from "./hooks/useNativeNotifications";
 import { TitleBar } from "./components/TitleBar";
 import { NavRail } from "./components/NavRail";
 import { CommandPalette } from "./components/CommandPalette";
+import { ShortcutCheatSheet } from "./components/ShortcutCheatSheet";
 import { OperateView } from "./components/OperateView";
 import { SimulatorView } from "./components/SimulatorView";
 import { OCPPLogsView } from "./components/OCPPLogsView";
@@ -21,6 +23,13 @@ export default function MissionControl() {
   useWebSocket();
   useTelemetrySampler();
   useHotkeys();
+  useNativeNotifications();
+
+  // Reflect the density preference on the document root so the CSS override
+  // (html[data-density="compact"]) can retune spacing globally.
+  createEffect(() => {
+    document.documentElement.dataset.density = density();
+  });
 
   const [configInfo] = createResource(() => api.getConfig().catch(() => null));
   const [aboutInfo] = createResource(() => api.getAbout().catch(() => null));
@@ -34,6 +43,7 @@ export default function MissionControl() {
         <ToastContainer />
         <ConfirmDialog />
         <CommandPalette />
+        <ShortcutCheatSheet />
 
         <TitleBar instanceId={instanceId()} ocppVersion={ocppVersion()} />
 

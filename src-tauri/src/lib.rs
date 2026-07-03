@@ -43,6 +43,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![log_to_terminal, splash_frontend_ready])
         .setup(|app| {
             let (mut rx, child) = app.shell().sidecar("chargeghost-core")

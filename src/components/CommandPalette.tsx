@@ -11,6 +11,9 @@ import {
   paletteOpen,
   togglePalette,
   setActiveView,
+  toggleCheatSheet,
+  toggleDensity,
+  density,
   type ViewId,
 } from "../store/ui";
 
@@ -131,6 +134,23 @@ export function CommandPalette() {
         run: () => setActiveView(item.id as ViewId),
       });
     }
+
+    // App-level preferences.
+    list.push({
+      id: "cheatsheet",
+      group: "App",
+      label: "Keyboard shortcuts",
+      keywords: "help keys shortcuts cheat sheet reference",
+      shortcut: "?",
+      run: () => toggleCheatSheet(true),
+    });
+    list.push({
+      id: "density",
+      group: "App",
+      label: `Switch to ${density() === "comfortable" ? "compact" : "comfortable"} density`,
+      keywords: "density compact comfortable spacing layout size",
+      run: () => toggleDensity(),
+    });
 
     return list;
   });

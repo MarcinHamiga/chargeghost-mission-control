@@ -19,11 +19,12 @@ const [activeView, setActiveViewSignal] = createSignal<ViewId>(
   readStored<ViewId>(ACTIVE_VIEW_KEY, "operate"),
 );
 const [paletteOpen, setPaletteOpen] = createSignal(false);
+const [cheatSheetOpen, setCheatSheetOpen] = createSignal(false);
 const [density, setDensitySignal] = createSignal<"comfortable" | "compact">(
   readStored(DENSITY_KEY, "comfortable"),
 );
 
-export { activeView, paletteOpen, density };
+export { activeView, paletteOpen, cheatSheetOpen, density };
 
 export function setActiveView(view: ViewId) {
   setActiveViewSignal(view);
@@ -37,6 +38,10 @@ export function setActiveView(view: ViewId) {
 
 export function togglePalette(open?: boolean) {
   setPaletteOpen((prev) => (open === undefined ? !prev : open));
+}
+
+export function toggleCheatSheet(open?: boolean) {
+  setCheatSheetOpen((prev) => (open === undefined ? !prev : open));
 }
 
 export function toggleDensity() {

@@ -1,6 +1,12 @@
 import { onCleanup, onMount } from "solid-js";
 import { NAV_ITEMS } from "../components/nav";
-import { setActiveView, togglePalette, paletteOpen } from "../store/ui";
+import {
+  setActiveView,
+  togglePalette,
+  paletteOpen,
+  toggleCheatSheet,
+  cheatSheetOpen,
+} from "../store/ui";
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -17,7 +23,8 @@ function isTypingTarget(el: EventTarget | null): boolean {
  * Global keyboard shortcuts:
  *   ⌘K / Ctrl-K  — command palette
  *   ⌘1…⌘5        — jump to view
- *   Esc          — close the palette
+ *   ?            — keyboard shortcut cheat-sheet
+ *   Esc          — close the palette / cheat-sheet
  * View-local single-key actions (P/S/U) are owned by the Operate stage.
  */
 export function useHotkeys() {
@@ -30,8 +37,21 @@ export function useHotkeys() {
       return;
     }
 
-    if (e.key === "Escape" && paletteOpen()) {
-      togglePalette(false);
+    if (e.key === "Escape") {
+      if (cheatSheetOpen()) {
+        toggleCheatSheet(false);
+        return;
+      }
+      if (paletteOpen()) {
+        togglePalette(false);
+        return;
+      }
+    }
+
+    // "?" (Shift+/) toggles the shortcut cheat-sheet — but not while typing.
+    if (e.key === "?" && !mod && !isTypingTarget(e.target)) {
+      e.preventDefault();
+      toggleCheatSheet();
       return;
     }
 
@@ -45,7 +65,6 @@ export function useHotkeys() {
     }
 
     // Leave everything else (including plain typing) untouched.
-    void isTypingTarget;
   };
 
   onMount(() => window.addEventListener("keydown", onKey));
