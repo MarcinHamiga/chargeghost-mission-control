@@ -113,6 +113,12 @@ export function handleWebSocketEvent(
       setState("snapshot", "active_sessions", (s) => s.connector_id === connectorId, "transaction_id", readNumber(d.transaction_id));
       break;
     }
+    case "charging_state_changed": {
+      const connectorId = readNumber(d.connector_id);
+      const isCharging = readString(d.charging_state) === "Charging";
+      setState("snapshot", "active_sessions", (s) => s.connector_id === connectorId, "is_charging", isCharging);
+      break;
+    }
     case "session_stopped":
       removeSession(setState, readNumber(d.connector_id));
       break;

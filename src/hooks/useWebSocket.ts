@@ -10,6 +10,7 @@ export function useWebSocket() {
   let ws: WebSocket | null = null;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   let pollInterval: ReturnType<typeof setInterval> | null = null;
+  let subscribedStationId: string | null = null;
 
   const applySnapshot = (snapshot: StatusSnapshot) => {
     setState("snapshot", snapshot);
@@ -31,6 +32,7 @@ export function useWebSocket() {
 
   const connect = () => {
     setState("connectionStatus", "connecting");
+    subscribedStationId = null;
 
     if (ws) {
       ws.close();
@@ -53,6 +55,14 @@ export function useWebSocket() {
         await logger.wsMessage("RECEIVED", message);
         const type = message.type as string;
         if (type === "state_snapshot" || type === "tick") {
+          const stationId = typeof message.station_id === "string" ? message.station_id : "";
+          if (stationId) {
+            if (subscribedStationId === null) {
+              subscribedStationId = stationId;
+            } else if (stationId !== subscribedStationId) {
+              return;
+            }
+          }
           applySnapshot(normalizeStatusSnapshot(message.data));
           return;
         }
@@ -66,6 +76,7 @@ export function useWebSocket() {
     ws.onclose = () => {
       console.log("WebSocket disconnected");
       setState("connectionStatus", "disconnected");
+      subscribedStationId = null;
       scheduleReconnect();
     };
 
