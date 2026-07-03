@@ -148,24 +148,24 @@ export const runtimeLastStoppedPayload = {
 };
 
 export const runtimeFirmwarePayload = {
-  Status: "Idle",
-  Location: null,
-  RetrieveDate: null,
-  FileName: null,
-  FileHash: null,
+  status: "Idle",
+  location: null,
+  retrieve_date: null,
+  file_name: null,
+  file_hash: null,
 };
 
 export const runtimeFirmwareArtifactPayload = {
-  Status: "Downloading",
-  Location: "https://example.com/firmware.bin",
-  RetrieveDate: "2026-04-10T10:00:00Z",
-  FileName: "firmware.bin",
-  FileHash: "abc123",
+  status: "Downloading",
+  location: "https://example.com/firmware.bin",
+  retrieve_date: "2026-04-10T10:00:00Z",
+  file_name: "firmware.bin",
+  file_hash: "abc123",
 };
 
 export const runtimeDiagnosticsPayload = {
-  Status: "Idle",
-  Location: null,
+  status: "Idle",
+  location: null,
 };
 
 export const runtimeOcppKeyPayload = [
@@ -176,3 +176,11 @@ export const runtimeOcppKeyPayload = [
     type: "int",
   },
 ];
+
+export const runtimeLocalAuthEntryPayload = {
+  id_tag: "RFID001",
+  authorization_status: "Accepted",
+  expiry_date: "2025-12-31T23:59:59Z",
+  is_expired: false,
+  parent_id_tag: null,
+};

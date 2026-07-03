@@ -214,11 +214,12 @@ export const api = {
   },
 
   async updateConfig(config: Partial<Config>): Promise<ConfigUpdateResponse> {
+    const { connectors: _connectors, ...body } = config;
     return normalizeConfigUpdateResponse(
       await request<unknown>(`${BASE_URL}/config`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(body),
       }),
     );
   },
@@ -345,10 +346,9 @@ export const api = {
     return normalizeChargingProfiles(await request<unknown>(`${BASE_URL}/charging-profiles`));
   },
 
-  async getChargingProfile(profileId: number, connectorId?: number): Promise<ChargingProfile> {
-    const query = connectorId ? `?connector_id=${connectorId}` : "";
+  async getChargingProfile(profileId: number, connectorId: number): Promise<ChargingProfile> {
     return normalizeChargingProfile(
-      await request<unknown>(`${BASE_URL}/charging-profiles/${profileId}${query}`),
+      await request<unknown>(`${BASE_URL}/charging-profiles/${profileId}?connector_id=${connectorId}`),
     );
   },
 

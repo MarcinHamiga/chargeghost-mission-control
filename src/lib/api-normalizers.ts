@@ -234,7 +234,7 @@ function normalizePendingRemoteStart(payload: unknown): PendingRemoteStart {
   return {
     connector_id: readNumber(p.connector_id),
     transaction_id: readNumber(p.transaction_id),
-    id_tag: readString(p.id_tag),
+    id_tag: optionalString(p.id_tag),
     expiry: readString(p.expiry),
   };
 }
@@ -299,10 +299,6 @@ export function normalizeFirmwareStatus(payload: unknown): FirmwareStatus {
   const p = asRecord(payload);
   return {
     status: normalizeFirmwareStatusValue(p.status ?? p.Status),
-    current_version: optionalString(p.current_version ?? p.CurrentVersion) ?? undefined,
-    target_version: optionalString(p.target_version ?? p.TargetVersion) ?? undefined,
-    progress: optionalNumber(p.progress ?? p.Progress),
-    error: optionalString(p.error ?? p.Error),
     location: optionalString(p.location ?? p.Location),
     retrieve_date: optionalString(p.retrieve_date ?? p.RetrieveDate),
     file_name: optionalString(p.file_name ?? p.FileName),
@@ -314,8 +310,6 @@ export function normalizeDiagnosticsStatus(payload: unknown): DiagnosticsStatus 
   const p = asRecord(payload);
   return {
     status: normalizeDiagnosticsStatusValue(p.status ?? p.Status),
-    progress: optionalNumber(p.progress ?? p.Progress),
-    error: optionalString(p.error ?? p.Error),
     location: optionalString(p.location ?? p.Location),
   };
 }
@@ -329,7 +323,6 @@ export function normalizeOcppConfigKeys(payload: unknown): OcppConfigKey[] {
       key: readString(p.key),
       value: readString(p.value),
       readonly: readBoolean(p.readonly),
-      supported: typeof p.supported === "boolean" ? p.supported : undefined,
       type: typeof p.type === "string" ? p.type : undefined,
     };
   });

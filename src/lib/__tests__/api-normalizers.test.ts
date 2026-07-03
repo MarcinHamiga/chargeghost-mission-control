@@ -8,6 +8,7 @@ import {
   runtimeFirmwareArtifactPayload,
   runtimeFirmwarePayload,
   runtimeLastStoppedPayload,
+  runtimeLocalAuthEntryPayload,
   runtimeLocalAuthListPayload,
   runtimeOcppKeyPayload,
   runtimeOcppStatusPayload,
@@ -20,6 +21,7 @@ import {
   normalizeConfigUpdateResponse,
   normalizeDiagnosticsStatus,
   normalizeFirmwareStatus,
+  normalizeLocalAuthEntry,
   normalizeLocalAuthList,
   normalizeOcppConfigKeys,
   normalizeOcppStatus,
@@ -47,23 +49,32 @@ describe("api normalizers", () => {
     });
   });
 
-  it("normalizes firmware status from PascalCase fields", () => {
+  it("normalizes firmware status from snake_case fields", () => {
     expect(normalizeFirmwareStatus(runtimeFirmwarePayload)).toMatchObject({
       status: "Idle",
       file_name: null,
     });
   });
 
-  it("preserves firmware file names without collapsing them into versions", () => {
+  it("preserves firmware file names", () => {
     expect(normalizeFirmwareStatus(runtimeFirmwareArtifactPayload)).toMatchObject({
       status: "Downloading",
       file_name: "firmware.bin",
-      current_version: undefined,
     });
   });
 
-  it("normalizes diagnostics status from PascalCase fields", () => {
+  it("normalizes diagnostics status from snake_case fields", () => {
     expect(normalizeDiagnosticsStatus(runtimeDiagnosticsPayload).status).toBe("Idle");
+  });
+
+  it("normalizes a single local auth entry", () => {
+    expect(normalizeLocalAuthEntry(runtimeLocalAuthEntryPayload)).toMatchObject({
+      id_tag: "RFID001",
+      authorization_status: "Accepted",
+      expiry_date: "2025-12-31T23:59:59Z",
+      is_expired: false,
+      parent_id_tag: null,
+    });
   });
 
   it("normalizes status snapshot with pending remote starts", () => {

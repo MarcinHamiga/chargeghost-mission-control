@@ -6,6 +6,7 @@ vi.mock("../logger", () => ({
   },
 }));
 import {
+  runtimeChargingProfileGetPayload,
   runtimeChargingProfilePostPayload,
   runtimeLocalAuthPutPayload,
   runtimeSessionStartPayload,
@@ -71,6 +72,42 @@ describe("api client", () => {
           connection_url: "ws://csms.example.com/ocpp",
         }),
       }),
+    );
+  });
+
+  it("strips connectors from the config PATCH body", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        success: true,
+        action: "applied",
+        changed_fields: ["log_mode"],
+        message: "unchanged",
+      }),
+    );
+
+    await api.updateConfig({
+      log_mode: "debug",
+      connectors: [{ voltage: 230, current: 32, phase: 1 }],
+    });
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).not.toHaveProperty("connectors");
+    expect(body).toEqual({ log_mode: "debug" });
+  });
+
+  it("requires a connector id when fetching a single charging profile", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(runtimeChargingProfileGetPayload),
+    );
+
+    await expect(api.getChargingProfile(10, 1)).resolves.toMatchObject({
+      profile_id: 10,
+      connector_id: 1,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/api/v1/charging-profiles/10?connector_id=1",
+      expect.any(Object),
     );
   });
 
@@ -236,24 +273,23 @@ describe("api client", () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         jsonResponse({
-          Status: "Downloading",
-          Location: "https://example.com/firmware.bin",
-          RetrieveDate: "2026-04-10T10:00:00Z",
-          FileName: "firmware.bin",
-          FileHash: "abc123",
+          status: "Downloading",
+          location: "https://example.com/firmware.bin",
+          retrieve_date: "2026-04-10T10:00:00Z",
+          file_name: "firmware.bin",
+          file_hash: "abc123",
         }),
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          Status: "Uploading",
-          Location: "https://example.com/diagnostics",
+          status: "Uploading",
+          location: "https://example.com/diagnostics",
         }),
       );
 
     await expect(api.getFirmwareStatus()).resolves.toMatchObject({
       status: "Downloading",
       file_name: "firmware.bin",
-      current_version: undefined,
     });
     await expect(api.getDiagnosticsStatus()).resolves.toMatchObject({
       status: "Uploading",
@@ -269,7 +305,7 @@ describe("api client", () => {
     );
 
     await expect(api.getOCPPConfigKeys()).resolves.toEqual([
-      { key: "ConnectionTimeOut", value: "30", readonly: false, supported: undefined, type: "int" },
+      { key: "ConnectionTimeOut", value: "30", readonly: false, type: "int" },
     ]);
   });
 

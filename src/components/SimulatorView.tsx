@@ -984,18 +984,6 @@ export function SimulatorView() {
                     <span class="text-text-muted">Status</span>
                     <span class="font-mono font-bold">{fw().status}</span>
                   </div>
-                  <Show when={fw().target_version}>
-                    <div class="flex justify-between">
-                      <span class="text-text-muted">Target</span>
-                      <span class="font-mono">{fw().target_version}</span>
-                    </div>
-                  </Show>
-                  <Show when={fw().current_version}>
-                    <div class="flex justify-between">
-                      <span class="text-text-muted">Version</span>
-                      <span class="font-mono">{fw().current_version}</span>
-                    </div>
-                  </Show>
                   <Show when={fw().file_name}>
                     <div class="flex justify-between">
                       <span class="text-text-muted">File</span>
@@ -1004,11 +992,18 @@ export function SimulatorView() {
                   </Show>
                   <Show when={fw().status !== "Idle"}>
                     <div class="w-full h-1.5 bg-bg-main rounded-full overflow-hidden mt-2">
-                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${fw().progress ?? 0}%` }} />
+                      <div
+                        class={cn(
+                          "h-full bg-accent-teal rounded-full transition-all",
+                          fw().status === "Downloading" || fw().status === "Installing"
+                            ? "w-1/2 animate-pulse"
+                            : "w-full",
+                        )}
+                      />
                     </div>
                   </Show>
-                  <Show when={fw().error}>
-                    <p class="text-red-400 text-xs">{fw().error}</p>
+                  <Show when={fw().status === "InstallationFailed"}>
+                    <p class="text-red-400 text-xs">Firmware installation failed.</p>
                   </Show>
                 </div>
               )}
@@ -1076,13 +1071,13 @@ export function SimulatorView() {
                     <span class="text-text-muted">Status</span>
                     <span class="font-mono font-bold">{diag().status}</span>
                   </div>
-                  <Show when={diag().status !== "Idle"}>
+                  <Show when={diag().status === "Uploading"}>
                     <div class="w-full h-1.5 bg-bg-main rounded-full overflow-hidden mt-2">
-                      <div class="h-full bg-accent-teal rounded-full transition-all" style={{ width: `${diag().progress ?? 0}%` }} />
+                      <div class="h-full bg-accent-teal rounded-full transition-all w-1/2 animate-pulse" />
                     </div>
                   </Show>
-                  <Show when={diag().error}>
-                    <p class="text-red-400 text-xs">{diag().error}</p>
+                  <Show when={diag().status === "UploadFailed"}>
+                    <p class="text-red-400 text-xs">Diagnostics upload failed.</p>
                   </Show>
                 </div>
               )}

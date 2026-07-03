@@ -87,7 +87,7 @@ export interface EnergyMeter {
 export interface PendingRemoteStart {
   connector_id: number;
   transaction_id: number;
-  id_tag: string;
+  id_tag: string | null;
   expiry: string;
 }
 
@@ -237,10 +237,6 @@ export type FirmwareStatusValue =
 
 export interface FirmwareStatus {
   status: FirmwareStatusValue;
-  current_version?: string | null;
-  target_version?: string | null;
-  progress?: number;
-  error?: string | null;
   location?: string | null;
   retrieve_date?: string | null;
   file_name?: string | null;
@@ -251,8 +247,6 @@ export type DiagnosticsStatusValue = 'Idle' | 'Uploading' | 'Uploaded' | 'Upload
 
 export interface DiagnosticsStatus {
   status: DiagnosticsStatusValue;
-  progress?: number;
-  error?: string | null;
   location?: string | null;
 }
 
@@ -260,6 +254,5 @@ export interface OcppConfigKey {
   key: string;
   value: string;
   readonly: boolean;
-  supported?: boolean;
   type?: string;
 }
