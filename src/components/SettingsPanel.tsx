@@ -8,6 +8,7 @@ import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRig
 import { cn } from "../lib/cn";
 import { requestConfirm } from "../store/confirm";
 import { Select } from "./Select";
+import { Button } from "./ui/Button";
 import { AUTH_STATUS_OPTIONS, toSelectOptions } from "../lib/select-options";
 
 export function SettingsPanel() {
@@ -163,31 +164,31 @@ export function SettingsPanel() {
   ];
 
   return (
-    <div class="space-y-6">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <Settings size={22} class="text-accent-teal" />
+    <div class="flex flex-col h-full min-h-0 gap-4">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-[15px] font-semibold flex items-center gap-2 tracking-[-0.01em]">
+          <Settings size={18} class="text-accent-teal" />
           Settings
+          <Show when={Object.keys(dirty()).length > 0}>
+            <span class="text-[11px] font-normal text-warn tnum">· {Object.keys(dirty()).length} unsaved</span>
+          </Show>
         </h2>
         <div class="flex items-center gap-3">
           <Show when={saveMsg()}>
             <span class={cn(
-              "text-xs px-3 py-1 rounded-full",
-              saveMsg()!.type === "success" ? "bg-accent-teal/10 text-accent-teal" : "bg-red-500/10 text-red-400"
+              "text-xs px-3 py-1 rounded-full max-w-md truncate",
+              saveMsg()!.type === "success" ? "bg-accent-teal/10 text-accent-teal" : "bg-critical/10 text-critical"
             )}>
               {saveMsg()!.text}
             </span>
           </Show>
-          <button
-            onClick={handleSave}
-            disabled={saving() || Object.keys(dirty()).length === 0}
-            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-teal/10 border border-accent-teal/30 text-accent-teal text-xs font-bold hover:bg-accent-teal/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save size={14} />
-            {saving() ? "Saving..." : "Save Changes"}
-          </button>
+          <Button variant="primary" size="sm" icon={<Save size={13} />} onClick={handleSave} disabled={saving() || Object.keys(dirty()).length === 0}>
+            {saving() ? "Saving…" : "Save changes"}
+          </Button>
         </div>
       </div>
+
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4 pr-0.5">
 
       <Show when={config()} fallback={
         <div class="flex items-center justify-center py-12 text-text-muted">
@@ -195,7 +196,7 @@ export function SettingsPanel() {
         </div>
       }>
         {/* Core Config */}
-        <div class="glass-card p-6">
+        <div class="panel p-6">
           <h3 class="text-sm font-bold mb-4 uppercase tracking-widest text-text-secondary">Charge Point Settings</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <For each={configFields}>
@@ -215,7 +216,7 @@ export function SettingsPanel() {
                       onClick={() => updateField(field.key, !currentValue(field.key))}
                       class={cn(
                         "w-10 h-5 rounded-full relative transition-colors",
-                        currentValue(field.key) ? "bg-accent-teal" : "bg-zinc-700"
+                        currentValue(field.key) ? "bg-accent-teal" : "bg-surface-4"
                       )}
                     >
                       <div class={cn(
@@ -248,7 +249,7 @@ export function SettingsPanel() {
         </div>
 
         <Show when={config()?.connectors && config()!.connectors!.length > 0}>
-          <div class="glass-card p-6">
+          <div class="panel p-6">
             <h3 class="text-sm font-bold mb-4 uppercase tracking-widest text-text-secondary">
               Startup Connectors (read-only)
             </h3>
@@ -264,7 +265,7 @@ export function SettingsPanel() {
           </div>
         </Show>
 
-        <div class="glass-card p-6">
+        <div class="panel p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-bold uppercase tracking-widest text-text-secondary flex items-center gap-2">
               <Server size={14} />
@@ -301,7 +302,7 @@ export function SettingsPanel() {
         </div>
 
         {/* OCPP Configuration Keys */}
-        <div class="glass-card">
+        <div class="panel">
           <button
             onClick={() => setOcppExpanded(!ocppExpanded())}
             class="w-full flex items-center justify-between p-6 text-left"
@@ -319,7 +320,7 @@ export function SettingsPanel() {
           <Show when={ocppExpanded()}>
             <div class="px-6 pb-6">
               <div class="border border-border-default rounded-lg overflow-hidden">
-                <div class="grid grid-cols-[1fr_1fr_80px] gap-0 text-xs font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+                <div class="grid grid-cols-[1fr_1fr_80px] gap-0 text-xs font-bold uppercase tracking-widest text-text-muted bg-surface-2/60 px-4 py-2 border-b border-border-default">
                   <span>Key</span>
                   <span>Value</span>
                   <span class="text-center">Status</span>
@@ -366,7 +367,7 @@ export function SettingsPanel() {
                               <button onClick={() => handleOcppKeyUpdate(entry.key)} class="text-accent-teal hover:text-accent-teal/80">
                                 <Check size={12} />
                               </button>
-                              <button onClick={() => setEditingKey(null)} class="text-text-muted hover:text-red-400">
+                              <button onClick={() => setEditingKey(null)} class="text-text-muted hover:text-critical">
                                 <X size={12} />
                               </button>
                             </div>
@@ -375,7 +376,7 @@ export function SettingsPanel() {
                         <div class="flex justify-center gap-2">
                           <span class={cn(
                             "px-1.5 py-0.5 rounded text-xs font-bold uppercase",
-                            entry.readonly ? "bg-orange-500/10 text-orange-400" : "bg-accent-teal/10 text-accent-teal"
+                            entry.readonly ? "bg-warn/10 text-warn" : "bg-accent-teal/10 text-accent-teal"
                           )}>
                             {entry.readonly ? "RO" : "RW"}
                           </span>
@@ -390,7 +391,7 @@ export function SettingsPanel() {
         </div>
 
         {/* Local Authorization List */}
-        <div class="glass-card">
+        <div class="panel">
           <button
             onClick={() => setLocalAuthExpanded(!localAuthExpanded())}
             class="w-full flex items-center justify-between p-6 text-left"
@@ -414,7 +415,7 @@ export function SettingsPanel() {
                 <Show when={localAuth()}>
                   <span class={cn(
                     "text-xs px-2 py-0.5 rounded font-bold uppercase",
-                    localAuth()!.enabled ? "bg-accent-teal/10 text-accent-teal" : "bg-red-500/10 text-red-400"
+                    localAuth()!.enabled ? "bg-accent-teal/10 text-accent-teal" : "bg-critical/10 text-critical"
                   )}>
                     {localAuth()!.enabled ? "Enabled" : "Disabled"}
                   </span>
@@ -430,7 +431,7 @@ export function SettingsPanel() {
                   <button
                     onClick={handleClearAuthList}
                     disabled={!localAuth() || localAuth()!.entry_count === 0}
-                    class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                    class="flex items-center gap-1 px-2 py-1 rounded text-xs border border-critical/25 text-critical hover:bg-critical/10 transition-colors disabled:opacity-50"
                   >
                     <Trash2 size={10} />
                     Clear All
@@ -477,7 +478,7 @@ export function SettingsPanel() {
 
               {/* Entries table */}
               <div class="border border-border-default rounded-lg overflow-x-auto custom-scrollbar">
-                <div class="grid grid-cols-[minmax(6rem,1fr)_6rem_4rem_minmax(8rem,1fr)_3.5rem] gap-0 min-w-[32rem] text-xs font-bold uppercase tracking-widest text-text-muted bg-bg-secondary/50 px-4 py-2 border-b border-border-default">
+                <div class="grid grid-cols-[minmax(6rem,1fr)_6rem_4rem_minmax(8rem,1fr)_3.5rem] gap-0 min-w-[32rem] text-xs font-bold uppercase tracking-widest text-text-muted bg-surface-2/60 px-4 py-2 border-b border-border-default">
                   <span>ID Tag</span>
                   <span>Status</span>
                   <span>Expired</span>
@@ -496,16 +497,16 @@ export function SettingsPanel() {
                           <span class="font-mono text-text-secondary">{entry.id_tag}</span>
                           <span class={cn(
                             "px-1.5 py-0.5 rounded text-xs font-bold uppercase w-fit",
-                            entry.authorization_status === "Accepted" ? "bg-green-500/10 text-green-400" :
-                            entry.authorization_status === "Blocked" ? "bg-red-500/10 text-red-400" :
-                            entry.authorization_status === "Expired" ? "bg-orange-500/10 text-orange-400" :
-                            "bg-yellow-500/10 text-yellow-400"
+                            entry.authorization_status === "Accepted" ? "bg-available/10 text-available" :
+                            entry.authorization_status === "Blocked" ? "bg-critical/10 text-critical" :
+                            entry.authorization_status === "Expired" ? "bg-warn/10 text-warn" :
+                            "bg-warn/10 text-warn"
                           )}>
                             {entry.authorization_status}
                           </span>
                           <span class={cn(
                             "text-xs font-bold uppercase",
-                            entry.is_expired ? "text-orange-400" : "text-text-muted"
+                            entry.is_expired ? "text-warn" : "text-text-muted"
                           )}>
                             {entry.is_expired ? "Yes" : "No"}
                           </span>
@@ -515,7 +516,7 @@ export function SettingsPanel() {
                           <div class="flex justify-center">
                             <button
                               onClick={() => handleDeleteAuthEntry(entry.id_tag)}
-                              class="text-red-400 hover:text-red-300 p-1"
+                              class="text-critical hover:text-critical/80 p-1"
                               title="Delete entry"
                             >
                               <Trash2 size={10} />
@@ -531,6 +532,7 @@ export function SettingsPanel() {
           </Show>
         </div>
       </Show>
+      </div>
     </div>
   );
 }

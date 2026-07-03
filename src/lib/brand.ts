@@ -7,6 +7,12 @@ export const BRAND_ACCENT_RGB = "0, 255, 204";
 export const LOGO_SRC = "/chargeghost-icon.svg";
 export const APP_TITLE = "ChargeGhost Mission Control";
 
+/** Full semantic app version, e.g. "1.0.0" (injected from package.json). */
+export const APP_VERSION = __APP_VERSION__;
+
+/** Short release label for branding, e.g. "v1.0". */
+export const APP_VERSION_LABEL = `v${APP_VERSION.split(".").slice(0, 2).join(".")}`;
+
 export function getStartupStatus(
   connectionStatus: ConnectionStatus,
   hasSnapshot: boolean,

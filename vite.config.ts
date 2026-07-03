@@ -1,13 +1,22 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
+import { readFileSync } from "node:fs";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
+// Single source of truth for the app version — read from package.json and
+// exposed to the frontend as the compile-time constant `__APP_VERSION__`.
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8"));
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [tailwindcss(), solid()],
+
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
 
   build: {
     rollupOptions: {

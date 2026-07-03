@@ -20,9 +20,15 @@ bun run tauri build
 
 # Frontend-only build
 bun run build
+
+# Type checking
+bun run typecheck
+
+# Run tests (Vitest, node environment, only src/lib/__tests__/**)
+bun run test
 ```
 
-No test runner or linter is currently configured.
+No linter is currently configured. Tests only cover `src/lib/` (API client, response normalizers, WS event parsing) — components/stores have no test coverage.
 
 ## Architecture
 
@@ -32,7 +38,7 @@ Tauri spawns `chargeghost-core` as a sidecar process (`src-tauri/src/lib.rs`). T
 
 ### Frontend Layers
 
-- **State** — Solid.js stores in `src/store/`. `simulator.ts` holds the main snapshot, selected connector, and connection status. `toast.ts` manages notifications. No external state library — pure Solid.js `createStore`/`createSignal`.
+- **State** — Solid.js stores in `src/store/`. `simulator.ts` holds the main snapshot, selected connector, and connection status. `telemetry.ts` buffers chart data. `toast.ts` manages notifications. `confirm.ts` drives the shared confirmation dialog. No external state library — pure Solid.js `createStore`/`createSignal`.
 - **API client** — `src/lib/api.ts`, a class-based singleton (`api`) wrapping fetch calls to the sidecar REST API. Custom `APIError` class. All endpoints documented in `REST_API.md`.
 - **WebSocket** — `src/hooks/useWebSocket.ts` establishes a WS connection for real-time state snapshots. Falls back to REST polling (2s) when WS is disconnected. Auto-reconnects with 2s delay.
 - **Components** — `src/components/`. Tab-based UI: dashboard, simulator (`SimulatorView.tsx` is the largest), OCPP logs, fault injection, settings. Connector-centric — most views operate on a single selected connector.

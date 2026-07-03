@@ -3,6 +3,7 @@ import { Info } from "lucide-solid";
 import { cn } from "../lib/cn";
 import { NAV_ITEMS } from "./nav";
 import { activeView, setActiveView, togglePalette } from "../store/ui";
+import { APP_VERSION_LABEL } from "../lib/brand";
 
 interface NavRailProps {
   version?: string;
@@ -47,7 +48,7 @@ export function NavRail(props: NavRailProps) {
 
       <Show when={props.version}>
         <div
-          title={`v${props.version}`}
+          title={`ChargeGhost Mission Control ${APP_VERSION_LABEL}  ·  Engine v${props.version}`}
           class="w-[34px] h-[34px] grid place-items-center rounded-[9px] text-text-muted"
         >
           <Info size={16} />

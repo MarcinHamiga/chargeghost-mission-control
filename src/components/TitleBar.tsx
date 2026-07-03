@@ -5,6 +5,7 @@ import { state } from "../store/simulator";
 import { togglePalette } from "../store/ui";
 import { ChargeGhostLogo } from "./ChargeGhostLogo";
 import { Kbd } from "./ui/Kbd";
+import { APP_VERSION, APP_VERSION_LABEL } from "../lib/brand";
 
 interface TitleBarProps {
   instanceId: string;
@@ -86,6 +87,12 @@ export function TitleBar(props: TitleBarProps) {
       >
         <ChargeGhostLogo size={16} />
         <span class="text-text-primary">ChargeGhost</span>
+        <span
+          class="font-mono text-[10px] font-semibold leading-none px-1.5 py-1 rounded-md bg-accent-teal/10 text-accent-teal border border-teal-deep tracking-tight"
+          title={`ChargeGhost Mission Control ${APP_VERSION}`}
+        >
+          {APP_VERSION_LABEL}
+        </span>
         <span class="text-text-muted">·</span>
         <span class="font-mono text-text-muted">{props.instanceId}</span>
       </div>
