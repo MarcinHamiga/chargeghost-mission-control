@@ -68,16 +68,16 @@ function buildChartConfig(
           type: "time",
           time: {
             unit: "second",
-            stepSize: 15,
             displayFormats: {
               second: "HH:mm:ss",
             },
           },
           grid: {
-            color: "#27272a",
+            color: "#1b2830",
           },
           ticks: {
-            color: "#52525b",
+            stepSize: 15,
+            color: "#5a6a64",
             font: {
               family: "monospace",
               size: 10,
@@ -89,10 +89,10 @@ function buildChartConfig(
         y: {
           beginAtZero: true,
           grid: {
-            color: "#27272a",
+            color: "#1b2830",
           },
           ticks: {
-            color: "#52525b",
+            color: "#5a6a64",
             font: {
               family: "monospace",
               size: 10,
@@ -184,20 +184,13 @@ export const TelemetryChart = (props: TelemetryChartProps) => {
     return getConnectorTelemetry(props.connectorId).points.length > 0;
   };
 
+  // The current-value readout now lives in the Operate stage's Power gauge.
+  void currentValueW;
+  void hasSamples;
+
   return (
-    <div class="p-4 bg-zinc-900/50 rounded-lg border border-zinc-800 backdrop-blur-sm h-full flex flex-col">
-      <div class="flex justify-between items-center mb-3">
-        <div class="flex flex-col">
-          <h3 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{props.label}</h3>
-          <div class="h-1 w-8 rounded-full mt-1" style={{ "background-color": props.color || "#3b82f6" }}></div>
-        </div>
-        <span class="text-sm font-mono text-zinc-200">
-          {hasSamples() ? `${currentValueW().toFixed(1)} W` : "---"}
-        </span>
-      </div>
-      <div class="relative flex-1 w-full min-h-[100px]">
-        <canvas ref={canvasRef} class="absolute inset-0 w-full h-full"></canvas>
-      </div>
+    <div class="relative h-full w-full min-h-[100px]">
+      <canvas ref={canvasRef} class="absolute inset-0 w-full h-full"></canvas>
     </div>
   );
 };

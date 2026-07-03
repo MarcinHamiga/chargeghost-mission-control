@@ -1,30 +1,67 @@
 @import "tailwindcss";
 
 @theme {
-  /* ChargeGhost Dark Palette - Inspired by Github/Raycast Hybrid */
-  --color-bg-main: #0a0c10;
-  --color-bg-secondary: #0d1117;
-  --color-bg-tertiary: #161b22;
-  --color-bg-card: #1c2128;
+  /* ==========================================================================
+     ChargeGhost Mission Control — design tokens
+     Near-black ground with a cool teal bias (chosen, not neutral grey).
+     Existing names (bg-main, accent-teal, text-primary…) are retained with
+     refined values so existing views keep working; new surface/semantic/mono
+     tokens power the redesigned shell + Operate stage.
+     ========================================================================== */
 
+  /* Ground + surface ramp */
+  --color-bg-main: #070b0e;       /* window base            */
+  --color-bg-secondary: #0c1217;  /* rail, sidebars         */
+  --color-bg-tertiary: #121b21;   /* raised panels          */
+  --color-bg-card: #18232b;       /* cards, inputs          */
+
+  --color-surface-1: #0c1217;
+  --color-surface-2: #121b21;
+  --color-surface-3: #18232b;
+  --color-surface-4: #1e2b33;     /* hover / active fills    */
+
+  /* Teal — split into two roles.
+     `accent-teal` (#00ffcc) is the LIVE signal: charging, active power,
+     primary CTA. `teal-calm` carries structure/links safely on dark. */
   --color-accent-teal: #00ffcc;
   --color-accent-teal-hover: #33ffd6;
   --color-accent-teal-alpha: rgba(0, 255, 204, 0.1);
+  --color-teal-calm: #17bda0;
+  --color-teal-deep: #0b4a41;
 
-  --color-border-default: #30363d66;
-  --color-border-bright: #484f58;
+  /* Borders */
+  --color-border-default: #26343d99;
+  --color-border-bright: #35474f;
 
-  --color-text-primary: #e6edf3;
-  --color-text-secondary: #8b949e;
-  --color-text-muted: #6e7681;
+  /* Neutrals, biased green so they read chosen */
+  --color-text-primary: #e8f1ed;
+  --color-text-secondary: #8a9a93;
+  --color-text-muted: #5a6a64;
 
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  /* Semantic — distinct from the accent hue */
+  --color-available: #46c98a;
+  --color-warn: #f4b13a;
+  --color-critical: #ff5d67;
+  --color-info: #5aa8ff;
+  --color-reserved: #9d8cff;
+
+  /* Native system faces — zero webfont payload, instant native texture */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
 }
 
 @layer base {
   body {
     @apply bg-bg-main text-text-primary antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Tauri drag region: let the titlebar move the window, but keep controls
+     inside it interactive. */
+  [data-tauri-drag-region] {
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
   }
 
   button:focus-visible,
@@ -37,8 +74,14 @@
 }
 
 @layer components {
+  /* Solid panel — the primary container in the redesign (replaces glass blur). */
+  .panel {
+    @apply bg-surface-1 border border-border-default rounded-xl;
+  }
+
+  /* Retained: still used across Settings / Simulator until they migrate. */
   .glass-card {
-    @apply bg-bg-card/40 border border-border-default backdrop-blur-md rounded-xl;
+    @apply bg-bg-card/60 border border-border-default rounded-xl;
   }
 
   .sidebar-item {
@@ -47,6 +90,11 @@
 
   .sidebar-item.active {
     @apply bg-accent-teal/10 text-accent-teal border border-accent-teal/20;
+  }
+
+  /* Instrument readouts never jitter as digits change. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
   }
 
   .custom-scrollbar {
@@ -81,5 +129,26 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes cg-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }

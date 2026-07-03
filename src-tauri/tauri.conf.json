@@ -18,7 +18,9 @@
         "height": 800,
         "minWidth": 960,
         "minHeight": 640,
-        "visible": false
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       },
       {
         "label": "splashscreen",
