@@ -14,6 +14,7 @@ import { OperateView } from "./components/OperateView";
 import { SimulatorView } from "./components/SimulatorView";
 import { OCPPLogsView } from "./components/OCPPLogsView";
 import { FaultLab } from "./components/FaultLab";
+import { FleetView } from "./components/FleetView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ToastContainer } from "./components/ToastContainer";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -63,6 +64,9 @@ export default function MissionControl() {
               </Match>
               <Match when={activeView() === "faults"}>
                 <FaultLab />
+              </Match>
+              <Match when={activeView() === "fleet"}>
+                <FleetView />
               </Match>
               <Match when={activeView() === "settings"}>
                 <SettingsPanel />

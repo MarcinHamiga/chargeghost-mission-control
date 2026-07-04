@@ -5,18 +5,26 @@ import type {
   ConfigConnector,
   ConfigLogMode,
   ConfigUpdateResponse,
+  DeadLetterEntry,
   DiagnosticsStatus,
   DiagnosticsStatusValue,
   FirmwareStatus,
   FirmwareStatusValue,
+  LifecycleState,
   LocalAuthEntry,
   LocalAuthList,
   LocalAuthStatus,
+  LocalAuthUpdateResponse,
   OcppConfigKey,
   OcppStatus,
   OcppVersion,
+  Operation,
+  OperationResponse,
   PendingRemoteStart,
+  QueuedMessage,
+  QueueStatus,
   Reservation,
+  StationSnapshot,
   StatusSnapshot,
   StoppedSession,
 } from "./types";
@@ -105,6 +113,10 @@ export function normalizeConfig(payload: unknown): Config {
     ocpp_password: p.ocpp_password === null ? null : optionalString(p.ocpp_password) ?? undefined,
     charge_point_model: readString(p.charge_point_model),
     charge_point_vendor: readString(p.charge_point_vendor),
+    charge_point_serial: optionalString(p.charge_point_serial),
+    firmware_version: optionalString(p.firmware_version),
+    modem_iccid: optionalString(p.modem_iccid),
+    modem_imsi: optionalString(p.modem_imsi),
     connectors: Array.isArray(p.connectors) ? p.connectors.map(normalizeConnector) : undefined,
     security_profile: optionalNumber(p.security_profile),
     skip_tls_verify: readBoolean(p.skip_tls_verify),
@@ -165,6 +177,17 @@ export function normalizeLocalAuthEntry(payload: unknown): LocalAuthEntry {
   };
 }
 
+export function normalizeLocalAuthUpdateResponse(payload: unknown): LocalAuthUpdateResponse {
+  const p = asRecord(payload);
+  return {
+    success: readBoolean(p.success, true),
+    message: readString(p.message),
+    details: p.details,
+    version: readNumber(p.version),
+    count: readNumber(p.count),
+  };
+}
+
 export function normalizeLocalAuthList(payload: unknown): LocalAuthList {
   const p = asRecord(payload);
   return {
@@ -198,7 +221,7 @@ export function normalizeChargingProfile(payload: unknown): ChargingProfile {
     connector_id: readNumber(p.connector_id ?? p.ConnectorID),
     purpose: readString(p.purpose ?? p.Purpose, "TxDefaultProfile") as ChargingProfile["purpose"],
     stack_level: readNumber(p.stack_level ?? p.StackLevel),
-    charging_profile_kind: readString(p.charging_profile_kind ?? p.Kind, "Absolute") as ChargingProfile["charging_profile_kind"],
+    charging_profile_kind: readString(p.charging_profile_kind ?? p.kind ?? p.Kind, "Absolute") as ChargingProfile["charging_profile_kind"],
     charging_rate_unit:
       unit === "A" || unit === "W" ? unit : undefined,
     schedule_period: periods,
@@ -324,6 +347,112 @@ export function normalizeOcppConfigKeys(payload: unknown): OcppConfigKey[] {
       value: readString(p.value),
       readonly: readBoolean(p.readonly),
       type: typeof p.type === "string" ? p.type : undefined,
+    };
+  });
+}
+
+const LIFECYCLE_STATES: LifecycleState[] = [
+  "configured",
+  "starting",
+  "running",
+  "stopping",
+  "stopped",
+  "failed",
+  "disabled",
+  "not_running",
+];
+
+function normalizeLifecycleState(value: unknown): LifecycleState {
+  if (typeof value !== "string") return "configured";
+  const v = value.trim().toLowerCase();
+  return (LIFECYCLE_STATES as string[]).includes(v) ? (v as LifecycleState) : "configured";
+}
+
+export function normalizeStationSnapshot(payload: unknown): StationSnapshot {
+  const p = asRecord(payload);
+  return {
+    station_id: readString(p.station_id),
+    ocpp_id: readString(p.ocpp_id),
+    enabled: readBoolean(p.enabled),
+    lifecycle_state: normalizeLifecycleState(p.lifecycle_state),
+    ocpp_version: normalizeOcppVersion(p.ocpp_version),
+    connection_url: readString(p.connection_url),
+    connected: readBoolean(p.connected),
+    connector_count: readNumber(p.connector_count),
+    active_session_count: readNumber(p.active_session_count),
+    queue_depth: readNumber(p.queue_depth),
+    last_error: optionalString(p.last_error),
+    restart_required: readBoolean(p.restart_required),
+    uptime_seconds: readNumber(p.uptime_seconds),
+  };
+}
+
+export function normalizeStationSnapshots(payload: unknown): StationSnapshot[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map(normalizeStationSnapshot);
+}
+
+export function normalizeOperation(payload: unknown): Operation {
+  const p = asRecord(payload);
+  return {
+    id: readString(p.id),
+    type: readString(p.type),
+    station_id: optionalString(p.station_id) ?? undefined,
+    state: readString(p.state),
+    started_at: readString(p.started_at),
+    ended_at: optionalString(p.ended_at) ?? undefined,
+    error: optionalString(p.error) ?? undefined,
+  };
+}
+
+export function normalizeOperations(payload: unknown): Operation[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map(normalizeOperation);
+}
+
+export function normalizeOperationResponse(payload: unknown): OperationResponse {
+  const p = asRecord(payload);
+  return {
+    success: readBoolean(p.success, true),
+    operation_id: optionalString(p.operation_id) ?? undefined,
+    message: readString(p.message),
+    scope: optionalString(p.scope) ?? undefined,
+    snapshot: normalizeStationSnapshot(p.snapshot),
+  };
+}
+
+export function normalizeQueueStatus(payload: unknown): QueueStatus {
+  const p = asRecord(payload);
+  return {
+    depth: readNumber(p.depth),
+    dropped: readNumber(p.dropped),
+    cap: readNumber(p.cap),
+  };
+}
+
+function normalizeQueuedMessage(payload: unknown): QueuedMessage {
+  const p = asRecord(payload);
+  return {
+    id: readString(p.id),
+    type: readString(p.type),
+    payload: p.payload,
+    created_at: readString(p.created_at),
+    last_attempt_at: optionalString(p.last_attempt_at) ?? undefined,
+    retry_count: readNumber(p.retry_count),
+    max_retries: readNumber(p.max_retries),
+    last_error: optionalString(p.last_error) ?? undefined,
+    idempotency_key: optionalString(p.idempotency_key) ?? undefined,
+  };
+}
+
+export function normalizeDeadLetter(payload: unknown): DeadLetterEntry[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map((entry) => {
+    const p = asRecord(entry);
+    return {
+      moved_at: readString(p.moved_at),
+      reason: readString(p.reason),
+      message: normalizeQueuedMessage(p.message),
     };
   });
 }

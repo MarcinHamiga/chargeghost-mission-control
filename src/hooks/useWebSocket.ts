@@ -1,16 +1,16 @@
 import { onCleanup, onMount, createEffect } from "solid-js";
 import { state, setState } from "../store/simulator";
 import { StatusSnapshot } from "../lib/types";
-import { api } from "../lib/api";
+import { api, getActiveStation } from "../lib/api";
 import { normalizeStatusSnapshot } from "../lib/api-normalizers";
 import { handleWebSocketEvent } from "../lib/ws-events";
 import { logger } from "../lib/logger";
+import { fleetState, setFleetState } from "../store/fleet";
 
 export function useWebSocket() {
   let ws: WebSocket | null = null;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   let pollInterval: ReturnType<typeof setInterval> | null = null;
-  let subscribedStationId: string | null = null;
 
   const applySnapshot = (snapshot: StatusSnapshot) => {
     setState("snapshot", snapshot);
@@ -32,13 +32,23 @@ export function useWebSocket() {
 
   const connect = () => {
     setState("connectionStatus", "connecting");
-    subscribedStationId = null;
 
+    // Detach handlers before closing so a deliberate reconnect (e.g. the
+    // active station changed) doesn't fire the old socket's onclose and
+    // schedule a spurious reconnect.
     if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
       ws.close();
     }
 
-    ws = new WebSocket("ws://localhost:8080/ws");
+    const stationId = getActiveStation();
+    const url = stationId
+      ? `ws://localhost:8080/ws?station_id=${encodeURIComponent(stationId)}`
+      : "ws://localhost:8080/ws";
+    ws = new WebSocket(url);
 
     ws.onopen = () => {
       console.log("WebSocket connected");
@@ -55,12 +65,12 @@ export function useWebSocket() {
         await logger.wsMessage("RECEIVED", message);
         const type = message.type as string;
         if (type === "state_snapshot" || type === "tick") {
-          const stationId = typeof message.station_id === "string" ? message.station_id : "";
-          if (stationId) {
-            if (subscribedStationId === null) {
-              subscribedStationId = stationId;
-            } else if (stationId !== subscribedStationId) {
-              return;
+          if (!getActiveStation()) {
+            const stationId = typeof message.station_id === "string" ? message.station_id : "";
+            if (stationId) {
+              api.setActiveStation(stationId);
+              setFleetState("activeStationId", stationId);
+              setFleetState("defaultStationId", stationId);
             }
           }
           applySnapshot(normalizeStatusSnapshot(message.data));
@@ -76,7 +86,6 @@ export function useWebSocket() {
     ws.onclose = () => {
       console.log("WebSocket disconnected");
       setState("connectionStatus", "disconnected");
-      subscribedStationId = null;
       scheduleReconnect();
     };
 
@@ -124,6 +133,12 @@ export function useWebSocket() {
       .getHealth()
       .then(() => setState("sidecarHealthy", true))
       .catch(() => setState("sidecarHealthy", false));
+  });
+
+  // Connect on mount and reconnect whenever the active station changes so the
+  // live stream always follows the station the rest of the app is scoped to.
+  createEffect(() => {
+    fleetState.activeStationId;
     connect();
   });
 

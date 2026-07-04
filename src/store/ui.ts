@@ -5,6 +5,7 @@ export type ViewId =
   | "connectors"
   | "ocpp"
   | "faults"
+  | "fleet"
   | "settings";
 
 const ACTIVE_VIEW_KEY = "cg-active-view";

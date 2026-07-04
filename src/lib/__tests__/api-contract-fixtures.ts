@@ -62,37 +62,37 @@ export const runtimeConfigPatchResponse = {
 export const runtimeChargingProfilePostPayload = {
   connector_id: 1,
   profile: {
-    ProfileID: 10,
-    ConnectorID: 1,
-    StackLevel: 0,
-    Purpose: "TxDefaultProfile",
-    Kind: "Absolute",
-    Schedule: {
-      ChargingRateUnit: "W",
-      Periods: [
-        { StartPeriod: 0, Limit: 7400 },
-        { StartPeriod: 3600, Limit: 11000 },
+    profile_id: 10,
+    connector_id: 1,
+    stack_level: 0,
+    purpose: "TxDefaultProfile",
+    kind: "Absolute",
+    schedule: {
+      charging_rate_unit: "W",
+      periods: [
+        { start_period: 0, limit: 7400 },
+        { start_period: 3600, limit: 11000 },
       ],
     },
   },
 };
 
 export const runtimeChargingProfileGetPayload = {
-  ProfileID: 10,
-  ConnectorID: 1,
-  StackLevel: 0,
-  Purpose: "TxDefaultProfile",
-  Kind: "Absolute",
-  Schedule: {
-    ChargingRateUnit: "W",
-    Periods: [{ StartPeriod: 0, Limit: 7400 }],
+  profile_id: 10,
+  connector_id: 1,
+  stack_level: 0,
+  purpose: "TxDefaultProfile",
+  kind: "Absolute",
+  schedule: {
+    charging_rate_unit: "W",
+    periods: [{ start_period: 0, limit: 7400 }],
   },
 };
 
 export const runtimeCompositeSchedulePayload = {
   periods: [
-    { StartPeriod: 0, Limit: 7400 },
-    { StartPeriod: 3600, Limit: 11000 },
+    { start_period: 0, limit: 7400 },
+    { start_period: 3600, limit: 11000 },
   ],
 };
 
@@ -116,10 +116,10 @@ export const runtimeLocalAuthPutPayload = {
   update_type: "Differential" as const,
   entries: [
     {
-      IDTag: "RFID001",
-      Status: "Accepted",
-      Expiry: "2025-12-31T23:59:59Z",
-      ParentIDTag: "GROUP001",
+      id_tag: "RFID001",
+      status: "Accepted",
+      expiry: "2025-12-31T23:59:59Z",
+      parent_id_tag: "GROUP001",
     },
   ],
 };
@@ -184,3 +184,59 @@ export const runtimeLocalAuthEntryPayload = {
   is_expired: false,
   parent_id_tag: null,
 };
+
+export const runtimeStationSnapshotPayload = {
+  station_id: "station-1",
+  ocpp_id: "CP_1",
+  enabled: true,
+  lifecycle_state: "running",
+  ocpp_version: "1.6",
+  connection_url: "wss://localhost:3000/CP_1",
+  connected: true,
+  connector_count: 2,
+  active_session_count: 1,
+  queue_depth: 0,
+  last_error: null,
+  restart_required: false,
+  uptime_seconds: 120.5,
+};
+
+export const runtimeOperationPayload = {
+  id: "op-1",
+  type: "restart",
+  station_id: "station-1",
+  state: "running",
+  started_at: "2026-07-04T10:00:00Z",
+};
+
+export const runtimeOperationResponsePayload = {
+  success: true,
+  operation_id: "op-1",
+  message: "Restart initiated",
+  scope: "station",
+  snapshot: runtimeStationSnapshotPayload,
+};
+
+export const runtimeQueueStatusPayload = {
+  depth: 3,
+  dropped: 1,
+  cap: 0,
+};
+
+export const runtimeDeadLetterPayload = [
+  {
+    moved_at: "2026-07-04T10:05:00Z",
+    reason: "max_retries_exceeded",
+    message: {
+      id: "msg-1",
+      type: "StatusNotification",
+      payload: { connector_id: 1, status: "Available" },
+      created_at: "2026-07-04T10:00:00Z",
+      last_attempt_at: "2026-07-04T10:04:00Z",
+      retry_count: 5,
+      max_retries: 5,
+      last_error: "timeout",
+      idempotency_key: "idem-1",
+    },
+  },
+];

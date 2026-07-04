@@ -12,17 +12,17 @@ export type ChargingProfileInput = {
 
 export function buildChargingProfilePayload(profile: ChargingProfileInput) {
   return {
-    ProfileID: profile.profile_id,
-    ConnectorID: profile.connector_id,
-    StackLevel: profile.stack_level,
-    Purpose: profile.purpose,
-    Kind: profile.charging_profile_kind,
-    Schedule: {
-      ChargingRateUnit: profile.charging_rate_unit ?? "W",
-      Periods: profile.schedule_period.map((period) => ({
-        StartPeriod: period.start_period,
-        Limit: period.limit,
-        ...(period.number_phases !== undefined ? { NumberPhases: period.number_phases } : {}),
+    profile_id: profile.profile_id,
+    connector_id: profile.connector_id,
+    stack_level: profile.stack_level,
+    purpose: profile.purpose,
+    kind: profile.charging_profile_kind,
+    schedule: {
+      charging_rate_unit: profile.charging_rate_unit ?? "W",
+      periods: profile.schedule_period.map((period) => ({
+        start_period: period.start_period,
+        limit: period.limit,
+        ...(period.number_phases !== undefined ? { number_phases: period.number_phases } : {}),
       })),
     },
   };

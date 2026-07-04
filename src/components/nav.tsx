@@ -3,6 +3,7 @@ import {
   Cpu,
   Terminal,
   ShieldAlert,
+  Users,
   Settings,
   type LucideProps,
 } from "lucide-solid";
@@ -22,5 +23,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "connectors", label: "Connectors", shortcut: 2, icon: Cpu },
   { id: "ocpp", label: "OCPP Timeline", shortcut: 3, icon: Terminal },
   { id: "faults", label: "Fault Lab", shortcut: 4, icon: ShieldAlert },
-  { id: "settings", label: "Settings", shortcut: 5, icon: Settings },
+  { id: "fleet", label: "Fleet", shortcut: 5, icon: Users },
+  { id: "settings", label: "Settings", shortcut: 6, icon: Settings },
 ];

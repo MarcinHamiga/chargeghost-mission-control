@@ -173,7 +173,7 @@ describe("api client", () => {
     );
   });
 
-  it("sends PascalCase local auth PUT entries", async () => {
+  it("sends snake_case local auth PUT entries", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse({ success: true, message: "ok" }),
     );
@@ -190,8 +190,8 @@ describe("api client", () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0][1] as RequestInit).body as string,
     );
-    expect(body.entries[0]).toHaveProperty("IDTag");
-    expect(body.entries[0]).not.toHaveProperty("id_tag");
+    expect(body.entries[0]).toHaveProperty("id_tag");
+    expect(body.entries[0]).not.toHaveProperty("IDTag");
   });
 
   it("posts charging profiles in engine.ChargingProfile shape", async () => {

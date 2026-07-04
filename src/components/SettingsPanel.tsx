@@ -4,12 +4,15 @@ import type { Config } from "../lib/types";
 import { state } from "../store/simulator";
 import { bridgeUnavailableMessage } from "../lib/http";
 import { addToast } from "../store/toast";
-import { Settings, Save, RefreshCw, Key, Server, Shield, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
+import { Settings, Save, RefreshCw, Key, Server, ChevronDown, ChevronRight, Check, X, Users, Plus, Trash2 } from "lucide-solid";
 import { cn } from "../lib/cn";
 import { requestConfirm } from "../store/confirm";
 import { Select } from "./Select";
 import { Button } from "./ui/Button";
 import { AUTH_STATUS_OPTIONS, toSelectOptions } from "../lib/select-options";
+import { DeviceInfoPanel } from "./DeviceInfoPanel";
+import { CredentialsPanel } from "./CredentialsPanel";
+import { QueuePanel } from "./QueuePanel";
 
 export function SettingsPanel() {
   const [config, { refetch: refetchConfig }] = createResource(() => api.getConfig());
@@ -48,9 +51,9 @@ export function SettingsPanel() {
         list_version: current.version + 1,
         update_type: "Differential",
         entries: [{
-          IDTag: newAuthIdTag(),
-          Status: newAuthStatus(),
-          ...(newAuthExpiry() ? { Expiry: new Date(newAuthExpiry()).toISOString() } : {}),
+          id_tag: newAuthIdTag(),
+          status: newAuthStatus(),
+          ...(newAuthExpiry() ? { expiry: new Date(newAuthExpiry()).toISOString() } : {}),
         }],
       });
       setAddingAuthEntry(false);
@@ -147,7 +150,6 @@ export function SettingsPanel() {
   const configFields: ConfigField[] = [
     { key: "connection_url", label: "OCPP Connection URL", type: "text", icon: Server },
     { key: "ocpp_id", label: "Charge Point ID", type: "text", icon: Key },
-    { key: "ocpp_password", label: "OCPP Password", type: "password", icon: Shield },
     { key: "security_profile", label: "Security Profile (0–2)", type: "number" },
     { key: "charge_point_model", label: "Charge Point Model", type: "text" },
     { key: "charge_point_vendor", label: "Charge Point Vendor", type: "text" },
@@ -189,6 +191,8 @@ export function SettingsPanel() {
       </div>
 
       <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4 pr-0.5">
+
+      <DeviceInfoPanel />
 
       <Show when={config()} fallback={
         <div class="flex items-center justify-center py-12 text-text-muted">
@@ -248,6 +252,8 @@ export function SettingsPanel() {
           </div>
         </div>
 
+        <CredentialsPanel />
+
         <Show when={config()?.connectors && config()!.connectors!.length > 0}>
           <div class="panel p-6">
             <h3 class="text-sm font-bold mb-4 uppercase tracking-widest text-text-secondary">
@@ -300,6 +306,9 @@ export function SettingsPanel() {
             )}
           </Show>
         </div>
+
+        {/* OCPP Message Queue */}
+        <QueuePanel />
 
         {/* OCPP Configuration Keys */}
         <div class="panel">

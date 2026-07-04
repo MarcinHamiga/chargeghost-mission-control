@@ -1,8 +1,9 @@
-import { Show } from "solid-js";
+import { Show, For } from "solid-js";
 import { Wifi, Zap } from "lucide-solid";
 import { cn } from "../lib/cn";
 import { state } from "../store/simulator";
 import { togglePalette } from "../store/ui";
+import { fleetState, setActiveStationId } from "../store/fleet";
 import { ChargeGhostLogo } from "./ChargeGhostLogo";
 import { Kbd } from "./ui/Kbd";
 import { APP_VERSION, APP_VERSION_LABEL } from "../lib/brand";
@@ -67,6 +68,8 @@ export function TitleBar(props: TitleBarProps) {
     state.connectionStatus === "connected" && state.sidecarHealthy;
   const bridgeConnecting = () => state.connectionStatus === "connecting";
   const csmsLive = () => !!state.snapshot?.ocpp_connected;
+  const activeStation = () =>
+    fleetState.stations.find((s) => s.station_id === fleetState.activeStationId);
 
   const uptime = () => {
     const s = state.snapshot?.uptime_seconds;
@@ -96,6 +99,35 @@ export function TitleBar(props: TitleBarProps) {
         <span class="text-text-muted">·</span>
         <span class="font-mono text-text-muted">{props.instanceId}</span>
       </div>
+
+      <Show when={fleetState.stations.length > 0}>
+        <div class="flex items-center gap-1.5 pointer-events-auto">
+          <span
+            class={cn(
+              "w-1.5 h-1.5 rounded-full shrink-0",
+              activeStation()?.lifecycle_state === "running"
+                ? "bg-accent-teal shadow-[0_0_7px_var(--color-accent-teal)]"
+                : activeStation()?.lifecycle_state === "failed"
+                  ? "bg-critical"
+                  : "bg-text-muted",
+            )}
+          />
+          <select
+            value={fleetState.activeStationId ?? ""}
+            onChange={(e) => setActiveStationId(e.currentTarget.value)}
+            title="Active station"
+            class="h-6 max-w-[160px] rounded-full border border-border-default bg-surface-1 px-2 text-[11px] font-mono text-text-secondary hover:text-text-primary focus:outline-none focus:border-accent-teal/50 transition-colors"
+          >
+            <For each={fleetState.stations}>
+              {(station) => (
+                <option value={station.station_id}>
+                  {station.ocpp_id} · {station.lifecycle_state}
+                </option>
+              )}
+            </For>
+          </select>
+        </div>
+      </Show>
 
       <div class="ml-auto flex items-center gap-1.5">
         <Vital
