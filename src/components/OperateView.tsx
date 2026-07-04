@@ -1,8 +1,10 @@
 import { Show } from "solid-js";
-import { Activity } from "lucide-solid";
+import { Activity, Plug, PlugZap } from "lucide-solid";
 import { state } from "../store/simulator";
 import { getConnectorTelemetry, getRevision } from "../store/telemetry";
 import { BRAND_ACCENT } from "../lib/brand";
+import { cn } from "../lib/cn";
+import { statusPresentation } from "../lib/connector-status";
 import { ConnectorSelector } from "./ConnectorSelector";
 import { ActionRail } from "./ActionRail";
 import { TelemetryChart } from "./TelemetryChart";
@@ -32,6 +34,53 @@ export function OperateView() {
   return (
     <div class="max-w-[1200px] mx-auto flex flex-col gap-4">
       <ConnectorSelector />
+
+      {/* Selected connector status */}
+      <Show when={connector()}>
+        {(c) => {
+          const p = () => statusPresentation(c().status);
+          return (
+            <div class="flex items-center gap-3 flex-wrap">
+              <span
+                class={cn(
+                  "inline-flex items-center gap-2 h-8 pl-2.5 pr-3.5 rounded-full border font-semibold text-[13px]",
+                  p().bg,
+                  p().border,
+                  p().text,
+                )}
+              >
+                <span
+                  class={cn(
+                    "w-2 h-2 rounded-full",
+                    p().dot,
+                    p().live && "shadow-[0_0_7px_var(--color-accent-teal)] animate-pulse",
+                  )}
+                />
+                {c().status}
+              </span>
+              <span class="inline-flex items-center gap-1.5 text-xs text-text-secondary">
+                <Show
+                  when={c().is_plugged_in}
+                  fallback={
+                    <>
+                      <Plug size={13} class="text-text-muted" />
+                      Cable disconnected
+                    </>
+                  }
+                >
+                  <PlugZap size={13} class="text-accent-teal" />
+                  Cable connected
+                </Show>
+              </span>
+              <Show when={c().id_tag}>
+                <span class="text-xs text-text-muted font-mono">
+                  Tag {c().id_tag}
+                </span>
+              </Show>
+            </div>
+          );
+        }}
+      </Show>
 
       {/* Instrument gauges */}
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">

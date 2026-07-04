@@ -201,7 +201,16 @@ export function SettingsPanel() {
       }>
         {/* Core Config */}
         <div class="panel p-6">
-          <h3 class="text-sm font-bold mb-4 uppercase tracking-widest text-text-secondary">Charge Point Settings</h3>
+          <div class="mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-widest text-text-secondary">Station Settings</h3>
+            <p class="text-[11px] text-text-muted mt-1">
+              Configuration for the active station
+              <Show when={config()?.ocpp_id}>
+                {" "}· <span class="font-mono text-text-secondary">{config()!.ocpp_id}</span>
+              </Show>
+              . Switch stations from the title bar.
+            </p>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <For each={configFields}>
               {(field) => (
